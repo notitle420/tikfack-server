@@ -1,0 +1,10 @@
+version: v2
+plugins:
+  #- remote: buf.build/protocolbuffers/go
+  - local: /home/ubuntu/go/bin/protoc-gen-go
+    out: gen
+    opt: paths=source_relative
+  #- remote: buf.build/bufbuild/connect-go
+  - local: /home/ubuntu/go/bin/protoc-gen-connect-go
+    out: gen
+    opt: paths=source_relative

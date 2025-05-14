@@ -1,0 +1,86 @@
+syntax = "proto3";
+package video;
+
+option go_package = "github.com/tikfack/server/gen/video;video";
+
+// 各属性用のメッセージ定義（IDと名前）
+message Actress {
+  string id = 1;
+  string name = 2;
+}
+
+message Genre {
+  string id = 1;
+  string name = 2;
+}
+
+message Maker {
+  string id = 1;
+  string name = 2;
+}
+
+message Series {
+  string id = 1;
+  string name = 2;
+}
+
+message Director {
+  string id = 1;
+  string name = 2;
+}
+
+// Videoメッセージを重要度順に並び替え
+message Video {
+  string dmm_id = 1;
+  string title = 2;
+  string direct_url = 3;
+  string url = 4;
+  string sample_url = 5;
+  string thumbnail_url = 6;
+  string created_at = 7;
+  int32 price = 8;
+  int32 likes_count = 9;
+
+  repeated Actress actresses = 10;
+  repeated Genre genres = 11;
+  repeated Maker makers = 12;
+  repeated Series series = 13;
+  repeated Director directors = 14;
+}
+
+message GetVideosByDateRequest {
+  string date = 1; // Optional date filter
+}
+
+message GetVideosByDateResponse {
+  repeated Video videos = 1;
+}
+
+
+message GetVideoByIdRequest {
+  string dmm_id = 1;
+}
+
+message GetVideoByIdResponse {
+  Video video = 1;
+}
+
+// 検索用メッセージ（ID指定のみ）
+message SearchVideosRequest {
+  string keyword = 1; // Optional keyword
+  string actress_id = 2;
+  string genre_id = 3;
+  string maker_id = 4;
+  string series_id = 5;
+  string director_id = 6; // ← 追加
+}
+
+message SearchVideosResponse {
+  repeated Video videos = 1;
+}
+
+service VideoService {
+  rpc GetVideosByDate(GetVideosByDateRequest) returns (GetVideosByDateResponse);
+  rpc GetVideoById(GetVideoByIdRequest) returns (GetVideoByIdResponse);
+  rpc SearchVideos(SearchVideosRequest) returns (SearchVideosResponse);
+}
