@@ -122,6 +122,72 @@ func (s *videoServiceServer) SearchVideos(ctx context.Context, req *connect.Requ
 	}), nil
 }
 
+// GetVideosByID は、複数のIDで動画を検索するエンドポイントの実装です。
+func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Request[pb.GetVideosByIDRequest]) (*connect.Response[pb.GetVideosByIDResponse], error) {
+	videos, err := s.videoUsecase.GetVideosByID(ctx, 
+		req.Msg.ActressId, 
+		req.Msg.GenreId, 
+		req.Msg.MakerId, 
+		req.Msg.SeriesId, 
+		req.Msg.DirectorId,
+		req.Msg.Hits,
+		req.Msg.Offset,
+		req.Msg.Sort,
+		req.Msg.GteDate,
+		req.Msg.LteDate,
+		req.Msg.Site,
+		req.Msg.Service,
+		req.Msg.Floor)
+	
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "動画の検索に失敗しました: %v", err)
+	}
+	
+	// ハンドラー層で各動画のURL検証を行う
+	for i := range videos {
+		directURL, err := util.GetValidVideoUrl(videos[i].DmmID)
+		if err == nil {
+			videos[i].DirectURL = directURL
+		}
+	}
+	
+	pbVideos := convertVideosToPb(videos)
+	return connect.NewResponse(&pb.GetVideosByIDResponse{
+		Videos: pbVideos,
+	}), nil
+}
+
+// GetVideosByKeyword は、キーワードで動画を検索するエンドポイントの実装です。
+func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connect.Request[pb.GetVideosByKeywordRequest]) (*connect.Response[pb.GetVideosByKeywordResponse], error) {
+	videos, err := s.videoUsecase.GetVideosByKeyword(ctx, 
+		req.Msg.Keyword,
+		req.Msg.Hits,
+		req.Msg.Offset,
+		req.Msg.Sort,
+		req.Msg.GteDate,
+		req.Msg.LteDate,
+		req.Msg.Site,
+		req.Msg.Service,
+		req.Msg.Floor)
+	
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "動画の検索に失敗しました: %v", err)
+	}
+	
+	// ハンドラー層で各動画のURL検証を行う
+	for i := range videos {
+		directURL, err := util.GetValidVideoUrl(videos[i].DmmID)
+		if err == nil {
+			videos[i].DirectURL = directURL
+		}
+	}
+	
+	pbVideos := convertVideosToPb(videos)
+	return connect.NewResponse(&pb.GetVideosByKeywordResponse{
+		Videos: pbVideos,
+	}), nil
+}
+
 // convertVideosToPb はドメイン層の Video を pb.Video に変換します。
 func convertVideosToPb(videos []entity.Video) []*pb.Video {
 	var pbVideos []*pb.Video
