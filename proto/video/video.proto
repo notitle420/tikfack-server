@@ -65,14 +65,68 @@ message GetVideoByIdResponse {
   Video video = 1;
 }
 
-// 検索用メッセージ（ID指定のみ）
+// ID指定による検索用メッセージ
+message GetVideosByIDRequest {
+  repeated string actress_id = 1;   // 女優ID（複数指定可能）
+  repeated string genre_id = 2;     // ジャンルID（複数指定可能）
+  repeated string maker_id = 3;     // メーカーID（複数指定可能）
+  repeated string series_id = 4;    // シリーズID（複数指定可能）
+  repeated string director_id = 5;  // 監督ID（複数指定可能）
+  
+  int32 hits = 6;          // 取得件数（初期値：20、最大：100）
+  int32 offset = 7;        // 検索開始位置（初期値：1、最大：50000）
+  string sort = 8;         // ソート順（rank：人気順、price：価格が高い順、-price：価格が安い順、date：発売日順、review：評価順、match：マッチング順）
+  string gte_date = 9;     // 発売日絞り込み（この日付以降、ISO8601形式 YYYY-MM-DDT00:00:00）
+  string lte_date = 10;    // 発売日絞り込み（この日付以前、ISO8601形式 YYYY-MM-DDT00:00:00）
+  
+  string site = 11;        // サイト（FANZA または DMM.com）
+  string service = 12;     // サービス（例：digital）
+  string floor = 13;       // フロア（例：videoa）
+}
+
+// キーワードによる検索用メッセージ
+message GetVideosByKeywordRequest {
+  string keyword = 1;      // 検索キーワード
+  
+  int32 hits = 2;          // 取得件数（初期値：20、最大：100）
+  int32 offset = 3;        // 検索開始位置（初期値：1、最大：50000）
+  string sort = 4;         // ソート順（rank：人気順、price：価格が高い順、-price：価格が安い順、date：発売日順、review：評価順、match：マッチング順）
+  string gte_date = 5;     // 発売日絞り込み（この日付以降、ISO8601形式 YYYY-MM-DDT00:00:00）
+  string lte_date = 6;     // 発売日絞り込み（この日付以前、ISO8601形式 YYYY-MM-DDT00:00:00）
+  
+  string site = 7;         // サイト（FANZA または DMM.com）
+  string service = 8;      // サービス（例：digital）
+  string floor = 9;        // フロア（例：videoa）
+}
+
+// 検索結果レスポンス
+message GetVideosByIDResponse {
+  repeated Video videos = 1;
+}
+
+// 検索結果レスポンス
+message GetVideosByKeywordResponse {
+  repeated Video videos = 1;
+}
+
+// 後方互換性のための検索用メッセージ（DMM API v3 パラメータに基づく）
 message SearchVideosRequest {
-  string keyword = 1; // Optional keyword
-  string actress_id = 2;
-  string genre_id = 3;
-  string maker_id = 4;
-  string series_id = 5;
-  string director_id = 6; // ← 追加
+  string keyword = 1;      // Optional keyword
+  string actress_id = 2;   // 女優ID
+  string genre_id = 3;     // ジャンルID
+  string maker_id = 4;     // メーカーID
+  string series_id = 5;    // シリーズID
+  string director_id = 6;  // 監督ID
+  
+  int32 hits = 7;          // 取得件数（初期値：20、最大：100）
+  int32 offset = 8;        // 検索開始位置（初期値：1、最大：50000）
+  string sort = 9;         // ソート順（rank：人気順、price：価格が高い順、-price：価格が安い順、date：発売日順、review：評価順、match：マッチング順）
+  string gte_date = 10;    // 発売日絞り込み（この日付以降、ISO8601形式 YYYY-MM-DDT00:00:00）
+  string lte_date = 11;    // 発売日絞り込み（この日付以前、ISO8601形式 YYYY-MM-DDT00:00:00）
+  
+  string site = 12;        // サイト（FANZA または DMM.com）
+  string service = 13;     // サービス（例：digital）
+  string floor = 14;       // フロア（例：videoa）
 }
 
 message SearchVideosResponse {
@@ -83,4 +137,6 @@ service VideoService {
   rpc GetVideosByDate(GetVideosByDateRequest) returns (GetVideosByDateResponse);
   rpc GetVideoById(GetVideoByIdRequest) returns (GetVideoByIdResponse);
   rpc SearchVideos(SearchVideosRequest) returns (SearchVideosResponse);
+  rpc GetVideosByID(GetVideosByIDRequest) returns (GetVideosByIDResponse);
+  rpc GetVideosByKeyword(GetVideosByKeywordRequest) returns (GetVideosByKeywordResponse);
 }
