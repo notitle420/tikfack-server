@@ -65,38 +65,38 @@ message GetVideoByIdResponse {
   Video video = 1;
 }
 
-// ID指定による検索用メッセージ
+// ID指定による検索用メッセージ（すべてのフィールドはoptional）
 message GetVideosByIDRequest {
-  repeated string actress_id = 1;   // 女優ID（複数指定可能）
-  repeated string genre_id = 2;     // ジャンルID（複数指定可能）
-  repeated string maker_id = 3;     // メーカーID（複数指定可能）
-  repeated string series_id = 4;    // シリーズID（複数指定可能）
-  repeated string director_id = 5;  // 監督ID（複数指定可能）
+  repeated string actress_id = 1;   // 女優ID（複数指定可能、空でも可）
+  repeated string genre_id = 2;     // ジャンルID（複数指定可能、空でも可）
+  repeated string maker_id = 3;     // メーカーID（複数指定可能、空でも可）
+  repeated string series_id = 4;    // シリーズID（複数指定可能、空でも可）
+  repeated string director_id = 5;  // 監督ID（複数指定可能、空でも可）
   
-  int32 hits = 6;          // 取得件数（初期値：20、最大：100）
-  int32 offset = 7;        // 検索開始位置（初期値：1、最大：50000）
-  string sort = 8;         // ソート順（rank：人気順、price：価格が高い順、-price：価格が安い順、date：発売日順、review：評価順、match：マッチング順）
-  string gte_date = 9;     // 発売日絞り込み（この日付以降、ISO8601形式 YYYY-MM-DDT00:00:00）
-  string lte_date = 10;    // 発売日絞り込み（この日付以前、ISO8601形式 YYYY-MM-DDT00:00:00）
+  int32 hits = 6;          // 取得件数（初期値：20、最大：100、省略可）
+  int32 offset = 7;        // 検索開始位置（初期値：1、最大：50000、省略可）
+  string sort = 8;         // ソート順（rank：人気順、price：価格が高い順、-price：価格が安い順、date：発売日順、review：評価順、match：マッチング順、省略可）
+  string gte_date = 9;     // 発売日絞り込み（この日付以降、ISO8601形式 YYYY-MM-DDT00:00:00、省略可）
+  string lte_date = 10;    // 発売日絞り込み（この日付以前、ISO8601形式 YYYY-MM-DDT00:00:00、省略可）
   
-  string site = 11;        // サイト（FANZA または DMM.com）
-  string service = 12;     // サービス（例：digital）
-  string floor = 13;       // フロア（例：videoa）
+  string site = 11;        // サイト（FANZA または DMM.com、省略可）
+  string service = 12;     // サービス（例：digital、省略可）
+  string floor = 13;       // フロア（例：videoa、省略可）
 }
 
-// キーワードによる検索用メッセージ
+// キーワードによる検索用メッセージ（すべてのフィールドはoptional）
 message GetVideosByKeywordRequest {
-  string keyword = 1;      // 検索キーワード
+  string keyword = 1;      // 検索キーワード（省略可）
   
-  int32 hits = 2;          // 取得件数（初期値：20、最大：100）
-  int32 offset = 3;        // 検索開始位置（初期値：1、最大：50000）
-  string sort = 4;         // ソート順（rank：人気順、price：価格が高い順、-price：価格が安い順、date：発売日順、review：評価順、match：マッチング順）
-  string gte_date = 5;     // 発売日絞り込み（この日付以降、ISO8601形式 YYYY-MM-DDT00:00:00）
-  string lte_date = 6;     // 発売日絞り込み（この日付以前、ISO8601形式 YYYY-MM-DDT00:00:00）
+  int32 hits = 2;          // 取得件数（初期値：20、最大：100、省略可）
+  int32 offset = 3;        // 検索開始位置（初期値：1、最大：50000、省略可）
+  string sort = 4;         // ソート順（rank：人気順、price：価格が高い順、-price：価格が安い順、date：発売日順、review：評価順、match：マッチング順、省略可）
+  string gte_date = 5;     // 発売日絞り込み（この日付以降、ISO8601形式 YYYY-MM-DDT00:00:00、省略可）
+  string lte_date = 6;     // 発売日絞り込み（この日付以前、ISO8601形式 YYYY-MM-DDT00:00:00、省略可）
   
-  string site = 7;         // サイト（FANZA または DMM.com）
-  string service = 8;      // サービス（例：digital）
-  string floor = 9;        // フロア（例：videoa）
+  string site = 7;         // サイト（FANZA または DMM.com、省略可）
+  string service = 8;      // サービス（例：digital、省略可）
+  string floor = 9;        // フロア（例：videoa、省略可）
 }
 
 // 検索結果レスポンス
