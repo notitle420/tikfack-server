@@ -42,6 +42,12 @@ const (
 	// VideoServiceSearchVideosProcedure is the fully-qualified name of the VideoService's SearchVideos
 	// RPC.
 	VideoServiceSearchVideosProcedure = "/video.VideoService/SearchVideos"
+	// VideoServiceGetVideosByIDProcedure is the fully-qualified name of the VideoService's
+	// GetVideosByID RPC.
+	VideoServiceGetVideosByIDProcedure = "/video.VideoService/GetVideosByID"
+	// VideoServiceGetVideosByKeywordProcedure is the fully-qualified name of the VideoService's
+	// GetVideosByKeyword RPC.
+	VideoServiceGetVideosByKeywordProcedure = "/video.VideoService/GetVideosByKeyword"
 )
 
 // VideoServiceClient is a client for the video.VideoService service.
@@ -49,6 +55,8 @@ type VideoServiceClient interface {
 	GetVideosByDate(context.Context, *connect_go.Request[video.GetVideosByDateRequest]) (*connect_go.Response[video.GetVideosByDateResponse], error)
 	GetVideoById(context.Context, *connect_go.Request[video.GetVideoByIdRequest]) (*connect_go.Response[video.GetVideoByIdResponse], error)
 	SearchVideos(context.Context, *connect_go.Request[video.SearchVideosRequest]) (*connect_go.Response[video.SearchVideosResponse], error)
+	GetVideosByID(context.Context, *connect_go.Request[video.GetVideosByIDRequest]) (*connect_go.Response[video.GetVideosByIDResponse], error)
+	GetVideosByKeyword(context.Context, *connect_go.Request[video.GetVideosByKeywordRequest]) (*connect_go.Response[video.GetVideosByKeywordResponse], error)
 }
 
 // NewVideoServiceClient constructs a client for the video.VideoService service. By default, it uses
@@ -76,14 +84,26 @@ func NewVideoServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 			baseURL+VideoServiceSearchVideosProcedure,
 			opts...,
 		),
+		getVideosByID: connect_go.NewClient[video.GetVideosByIDRequest, video.GetVideosByIDResponse](
+			httpClient,
+			baseURL+VideoServiceGetVideosByIDProcedure,
+			opts...,
+		),
+		getVideosByKeyword: connect_go.NewClient[video.GetVideosByKeywordRequest, video.GetVideosByKeywordResponse](
+			httpClient,
+			baseURL+VideoServiceGetVideosByKeywordProcedure,
+			opts...,
+		),
 	}
 }
 
 // videoServiceClient implements VideoServiceClient.
 type videoServiceClient struct {
-	getVideosByDate *connect_go.Client[video.GetVideosByDateRequest, video.GetVideosByDateResponse]
-	getVideoById    *connect_go.Client[video.GetVideoByIdRequest, video.GetVideoByIdResponse]
-	searchVideos    *connect_go.Client[video.SearchVideosRequest, video.SearchVideosResponse]
+	getVideosByDate    *connect_go.Client[video.GetVideosByDateRequest, video.GetVideosByDateResponse]
+	getVideoById       *connect_go.Client[video.GetVideoByIdRequest, video.GetVideoByIdResponse]
+	searchVideos       *connect_go.Client[video.SearchVideosRequest, video.SearchVideosResponse]
+	getVideosByID      *connect_go.Client[video.GetVideosByIDRequest, video.GetVideosByIDResponse]
+	getVideosByKeyword *connect_go.Client[video.GetVideosByKeywordRequest, video.GetVideosByKeywordResponse]
 }
 
 // GetVideosByDate calls video.VideoService.GetVideosByDate.
@@ -101,11 +121,23 @@ func (c *videoServiceClient) SearchVideos(ctx context.Context, req *connect_go.R
 	return c.searchVideos.CallUnary(ctx, req)
 }
 
+// GetVideosByID calls video.VideoService.GetVideosByID.
+func (c *videoServiceClient) GetVideosByID(ctx context.Context, req *connect_go.Request[video.GetVideosByIDRequest]) (*connect_go.Response[video.GetVideosByIDResponse], error) {
+	return c.getVideosByID.CallUnary(ctx, req)
+}
+
+// GetVideosByKeyword calls video.VideoService.GetVideosByKeyword.
+func (c *videoServiceClient) GetVideosByKeyword(ctx context.Context, req *connect_go.Request[video.GetVideosByKeywordRequest]) (*connect_go.Response[video.GetVideosByKeywordResponse], error) {
+	return c.getVideosByKeyword.CallUnary(ctx, req)
+}
+
 // VideoServiceHandler is an implementation of the video.VideoService service.
 type VideoServiceHandler interface {
 	GetVideosByDate(context.Context, *connect_go.Request[video.GetVideosByDateRequest]) (*connect_go.Response[video.GetVideosByDateResponse], error)
 	GetVideoById(context.Context, *connect_go.Request[video.GetVideoByIdRequest]) (*connect_go.Response[video.GetVideoByIdResponse], error)
 	SearchVideos(context.Context, *connect_go.Request[video.SearchVideosRequest]) (*connect_go.Response[video.SearchVideosResponse], error)
+	GetVideosByID(context.Context, *connect_go.Request[video.GetVideosByIDRequest]) (*connect_go.Response[video.GetVideosByIDResponse], error)
+	GetVideosByKeyword(context.Context, *connect_go.Request[video.GetVideosByKeywordRequest]) (*connect_go.Response[video.GetVideosByKeywordResponse], error)
 }
 
 // NewVideoServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -129,6 +161,16 @@ func NewVideoServiceHandler(svc VideoServiceHandler, opts ...connect_go.HandlerO
 		svc.SearchVideos,
 		opts...,
 	)
+	videoServiceGetVideosByIDHandler := connect_go.NewUnaryHandler(
+		VideoServiceGetVideosByIDProcedure,
+		svc.GetVideosByID,
+		opts...,
+	)
+	videoServiceGetVideosByKeywordHandler := connect_go.NewUnaryHandler(
+		VideoServiceGetVideosByKeywordProcedure,
+		svc.GetVideosByKeyword,
+		opts...,
+	)
 	return "/video.VideoService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case VideoServiceGetVideosByDateProcedure:
@@ -137,6 +179,10 @@ func NewVideoServiceHandler(svc VideoServiceHandler, opts ...connect_go.HandlerO
 			videoServiceGetVideoByIdHandler.ServeHTTP(w, r)
 		case VideoServiceSearchVideosProcedure:
 			videoServiceSearchVideosHandler.ServeHTTP(w, r)
+		case VideoServiceGetVideosByIDProcedure:
+			videoServiceGetVideosByIDHandler.ServeHTTP(w, r)
+		case VideoServiceGetVideosByKeywordProcedure:
+			videoServiceGetVideosByKeywordHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -156,4 +202,12 @@ func (UnimplementedVideoServiceHandler) GetVideoById(context.Context, *connect_g
 
 func (UnimplementedVideoServiceHandler) SearchVideos(context.Context, *connect_go.Request[video.SearchVideosRequest]) (*connect_go.Response[video.SearchVideosResponse], error) {
 	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("video.VideoService.SearchVideos is not implemented"))
+}
+
+func (UnimplementedVideoServiceHandler) GetVideosByID(context.Context, *connect_go.Request[video.GetVideosByIDRequest]) (*connect_go.Response[video.GetVideosByIDResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("video.VideoService.GetVideosByID is not implemented"))
+}
+
+func (UnimplementedVideoServiceHandler) GetVideosByKeyword(context.Context, *connect_go.Request[video.GetVideosByKeywordRequest]) (*connect_go.Response[video.GetVideosByKeywordResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("video.VideoService.GetVideosByKeyword is not implemented"))
 }
