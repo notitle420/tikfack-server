@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/tikfack/server/internal/domain/entity"
-	"github.com/tikfack/server/internal/domain/repository"
 )
 
 type MockVideoRepository struct {
