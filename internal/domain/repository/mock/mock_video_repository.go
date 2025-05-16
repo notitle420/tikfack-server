@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 	time "time"
 
-	gomock "github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 	entity "github.com/tikfack/server/internal/domain/entity"
 )
 

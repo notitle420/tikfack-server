@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/tikfack/server/internal/domain/entity"
 )
@@ -21,8 +21,22 @@ func TestGetVideosByDate(t *testing.T) {
 		ContentID: "vid1",
 		Title:     "テスト動画",
 		Date:      "2024-01-01 00:00:00",
+		Review: &struct {
+			Count   int    `json:"count"`
+			Average string `json:"average"`
+		}{
+			Count:   5,
+			Average: "4.0",
+		},
 	}
-	videoEntity := entity.Video{DmmID: "vid1", Title: "テスト動画"}
+	videoEntity := entity.Video{
+		DmmID: "vid1", 
+		Title: "テスト動画",
+		Review: entity.Review{
+			Count:   5,
+			Average: 4.0,
+		},
+	}
 	expectedAPIError := errors.New("API error")
 	
 	tests := []struct {
@@ -113,6 +127,13 @@ func TestGetVideoById(t *testing.T) {
 		ContentID: "vid1",
 		Title:     "テスト動画",
 		Date:      "2024-01-01 00:00:00",
+		Review: &struct {
+			Count   int    `json:"count"`
+			Average string `json:"average"`
+		}{
+			Count:   10,
+			Average: "4.5",
+		},
 	}
 	// 実際のコードで変換される時刻を使用
 	createdAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -120,6 +141,10 @@ func TestGetVideoById(t *testing.T) {
 		DmmID:     "vid1", 
 		Title:     "テスト動画",
 		CreatedAt: createdAt,
+		Review: entity.Review{
+			Count:   10,
+			Average: 4.5,
+		},
 	}
 	expectedAPIError := errors.New("API error")
 	videoNotFoundErr := errors.New("video not found")
@@ -216,8 +241,22 @@ func TestSearchVideos(t *testing.T) {
 		ContentID: "vid1",
 		Title:     "テスト動画",
 		Date:      "2024-01-01 00:00:00",
+		Review: &struct {
+			Count   int    `json:"count"`
+			Average string `json:"average"`
+		}{
+			Count:   15,
+			Average: "3.5",
+		},
 	}
-	videoEntity := entity.Video{DmmID: "vid1", Title: "テスト動画"}
+	videoEntity := entity.Video{
+		DmmID: "vid1", 
+		Title: "テスト動画",
+		Review: entity.Review{
+			Count:   15,
+			Average: 3.5,
+		},
+	}
 	expectedAPIError := errors.New("API error")
 	
 	tests := []struct {
@@ -448,8 +487,22 @@ func TestGetVideosByID(t *testing.T) {
 		ContentID: "vid1",
 		Title:     "テスト動画",
 		Date:      "2024-01-01 00:00:00",
+		Review: &struct {
+			Count   int    `json:"count"`
+			Average string `json:"average"`
+		}{
+			Count:   20,
+			Average: "4.2",
+		},
 	}
-	videoEntity := entity.Video{DmmID: "vid1", Title: "テスト動画"}
+	videoEntity := entity.Video{
+		DmmID: "vid1", 
+		Title: "テスト動画",
+		Review: entity.Review{
+			Count:   20,
+			Average: 4.2,
+		},
+	}
 	expectedAPIError := errors.New("API error")
 	
 	tests := []struct {
@@ -807,8 +860,22 @@ func TestGetVideosByKeyword(t *testing.T) {
 		ContentID: "vid1",
 		Title:     "テスト動画",
 		Date:      "2024-01-01 00:00:00",
+		Review: &struct {
+			Count   int    `json:"count"`
+			Average string `json:"average"`
+		}{
+			Count:   25,
+			Average: "3.8",
+		},
 	}
-	videoEntity := entity.Video{DmmID: "vid1", Title: "テスト動画"}
+	videoEntity := entity.Video{
+		DmmID: "vid1", 
+		Title: "テスト動画",
+		Review: entity.Review{
+			Count:   25,
+			Average: 3.8,
+		},
+	}
 	expectedAPIError := errors.New("API error")
 	
 	tests := []struct {
