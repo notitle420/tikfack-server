@@ -6,6 +6,7 @@ import (
 )
 
 // NewVideoRepository は domain.VideoRepository の実装を返す
+// dmmapi.repositoryを返すだけなのでテスト不要
 func NewVideoRepository() (repository.VideoRepository, error) {
     // 今は DMM API 実装を返す
     return dmmapi.NewRepository()

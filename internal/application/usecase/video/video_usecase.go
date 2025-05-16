@@ -1,5 +1,7 @@
 package usecase
 
+//go:generate mockgen -destination=../mock/mock_video_usecase.go -package=mock github.com/tikfack/server/internal/application/usecase/video VideoUsecase
+
 import (
 	"context"
 	"time"

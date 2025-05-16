@@ -3,7 +3,6 @@ package dmmapi
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -11,10 +10,16 @@ import (
 	"github.com/tikfack/server/internal/domain/repository"
 )
 
-// Repository は domain.VideoRepository を実装
-// DMM API 経由で動画データを取得する
 type Repository struct {
-    client *Client
+    client ClientInterface
+    mapper MapperInterface
+}
+
+
+
+type defaultMapper struct{}
+func (m defaultMapper) ConvertItem(item Item) entity.Video {
+    return ConvertItem(item)
 }
 
 // NewRepository 新しい DMM 用 Repository を返す
@@ -23,8 +28,20 @@ func NewRepository() (repository.VideoRepository, error) {
     if err != nil {
         return nil, err
     }
-    return &Repository{client: c}, nil
+    return &Repository{
+        client: c,
+        mapper: defaultMapper{},
+    }, nil
 }
+
+// テストやモック注入用
+func NewRepositoryWithDeps(client ClientInterface, mapper MapperInterface) repository.VideoRepository {
+    return &Repository{
+        client: client,
+        mapper: mapper,
+    }
+}
+
 
 // GetVideosByDate は指定日付の動画一覧を取得する
 func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time) ([]entity.Video, error) {
@@ -33,14 +50,14 @@ func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time) 
         targetDate.Format("2006-01-02T00:00:00"),
         targetDate.AddDate(0, 0, 1).Format("2006-01-02T00:00:00"),
     )
-    log.Println(path)
+    //log.Println(path)
     var resp Response
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
     }
     videos := make([]entity.Video, 0, len(resp.Result.Items))
     for _, item := range resp.Result.Items {
-        videos = append(videos, ConvertItem(item))
+        videos = append(videos,r.mapper.ConvertItem(item))
     }
     return videos, nil
 }
@@ -51,7 +68,7 @@ func (r *Repository) GetVideoById(ctx context.Context, dmmID string) (*entity.Vi
         "/v3/ItemList?site=FANZA&service=digital&floor=videoa&cid=%s",
         dmmID,
     )
-    log.Println(path)
+    //log.Println(path)
     var resp Response
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
@@ -59,7 +76,7 @@ func (r *Repository) GetVideoById(ctx context.Context, dmmID string) (*entity.Vi
     if len(resp.Result.Items) == 0 {
         return nil, fmt.Errorf("動画ID %s が見つかりませんでした", dmmID)
     }
-    v := ConvertItem(resp.Result.Items[0])
+    v := r.mapper.ConvertItem(resp.Result.Items[0])
     return &v, nil
 }
 
@@ -118,7 +135,7 @@ func (r *Repository) SearchVideos(
     }
     videos := make([]entity.Video, 0, len(resp.Result.Items))
     for _, item := range resp.Result.Items {
-        videos = append(videos, ConvertItem(item))
+        videos = append(videos,r.mapper.ConvertItem(item))
     }
     return videos, nil
 }
@@ -202,14 +219,14 @@ func (r *Repository) GetVideosByID(
     }
     
     path := "/v3/ItemList?" + strings.Join(params, "&")
-    log.Println(path)
+    //log.Println(path)
     var resp Response
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
     }
     videos := make([]entity.Video, 0, len(resp.Result.Items))
     for _, item := range resp.Result.Items {
-        videos = append(videos, ConvertItem(item))
+        videos = append(videos,r.mapper.ConvertItem(item))
     }
     return videos, nil
 }
@@ -247,14 +264,14 @@ func (r *Repository) GetVideosByKeyword(
     }
     
     path := "/v3/ItemList?" + strings.Join(params, "&")
-    log.Println(path)
+    //log.Println(path)
     var resp Response
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
     }
     videos := make([]entity.Video, 0, len(resp.Result.Items))
     for _, item := range resp.Result.Items {
-        videos = append(videos, ConvertItem(item))
+        videos = append(videos,r.mapper.ConvertItem(item))
     }
     return videos, nil
 }
