@@ -1,5 +1,7 @@
 package dmmapi
 
+//go:generate mockgen -destination=mock_client.go -package=dmmapi github.com/tikfack/server/internal/infrastructure/dmmapi ClientInterface
+
 import (
 	"encoding/json"
 	"fmt"
@@ -7,6 +9,10 @@ import (
 	"net/http"
 	"os"
 )
+
+type ClientInterface interface {
+    Call(path string, v interface{}) error
+}
 
 // Client は DMM API へのリクエストを行う
 type Client struct {

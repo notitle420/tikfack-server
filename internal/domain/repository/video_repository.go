@@ -1,5 +1,7 @@
 package repository
 
+//go:generate mockgen -destination=mock/mock_video_repository.go -package=mock github.com/tikfack/server/internal/domain/repository VideoRepository
+
 import (
 	"context"
 	"time"

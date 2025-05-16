@@ -1,5 +1,7 @@
 package dmmapi
 
+//go:generate mockgen -destination=mock_mapper.go -package=dmmapi github.com/tikfack/server/internal/infrastructure/dmmapi MapperInterface
+
 import (
 	"strconv"
 	"strings"
@@ -7,6 +9,10 @@ import (
 
 	"github.com/tikfack/server/internal/domain/entity"
 )
+
+type MapperInterface interface {
+    ConvertItem(item Item) entity.Video
+}
 
 // ConvertItem は dmmapi.Item を entity.Video に変換する
 func ConvertItem(item Item) entity.Video {
