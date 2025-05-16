@@ -1,0 +1,41 @@
+# 環境変数ファイル
+.env
+
+# 一時ファイル
+branch_changes.diff
+
+# バイナリ
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# テストバイナリ
+*.test
+
+# カバレッジファイル
+*.out
+
+# Go特有
+*.o
+*.a
+/vendor/
+/go.work
+
+# エディタ設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS生成ファイル
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db 

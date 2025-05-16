@@ -26,7 +26,11 @@ type videoServiceServer struct {
 // NewVideoServiceHandler はハンドラーの初期化を行います。
 func NewVideoServiceHandler() *videoServiceServer {
 	// repository.NewDMMVideoRepository() の実装を渡す
-	repo := repository.NewDMMVideoRepository()
+	repo, err := repository.NewVideoRepository()
+	if err != nil {
+		// TODO: Consider how to handle initialization error
+		panic(err)
+	}
 	vu := video.NewVideoUsecase(repo)
 	return &videoServiceServer{
 		videoUsecase: vu,
@@ -138,7 +142,7 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 		req.Msg.Site,
 		req.Msg.Service,
 		req.Msg.Floor)
-	
+
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "動画の検索に失敗しました: %v", err)
 	}

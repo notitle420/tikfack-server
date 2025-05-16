@@ -14,7 +14,11 @@ import (
 )
 
 func TestNewDMMVideoRepository(t *testing.T) {
-	repo := NewDMMVideoRepository()
+	repo, err := NewVideoRepository()
+	if err != nil {
+		// TODO: Consider how to handle initialization error
+		panic(err)
+	}
 	assert.NotNil(t, repo)
 }
 
@@ -88,7 +92,12 @@ func TestGetVideosByDate(t *testing.T) {
 		os.Setenv("HITS", oldHits)
 	}()
 	
-	repo := NewDMMVideoRepository()
+	repo, err := NewVideoRepository()
+	if err != nil {
+		// TODO: Consider how to handle initialization error
+		panic(err)
+	}
+	assert.NotNil(t, repo)
 	ctx := context.Background()
 	targetDate := time.Now()
 	
@@ -158,7 +167,12 @@ func TestGetVideoById(t *testing.T) {
 		os.Setenv("HITS", oldHits)
 	}()
 	
-	repo := NewDMMVideoRepository()
+	repo, err := NewVideoRepository()
+	if err != nil {
+		// TODO: Consider how to handle initialization error
+		panic(err)
+	}
+	assert.NotNil(t, repo)
 	ctx := context.Background()
 	
 	video, err := repo.GetVideoById(ctx, "test123")
@@ -170,7 +184,12 @@ func TestGetVideoById(t *testing.T) {
 }
 
 func TestSearchVideos(t *testing.T) {
-	repo := NewDMMVideoRepository()
+	repo, err := NewVideoRepository()
+	if err != nil {
+		// TODO: Consider how to handle initialization error
+		panic(err)
+	}
+	assert.NotNil(t, repo)
 	ctx := context.Background()
 	
 	videos, err := repo.SearchVideos(ctx, "keyword", "1", "2", "3", "4", "5")
@@ -229,7 +248,12 @@ func TestGetVideosByID(t *testing.T) {
 		os.Setenv("HITS", oldHits)
 	}()
 	
-	repo := NewDMMVideoRepository()
+	repo, err := NewVideoRepository()
+	if err != nil {
+		// TODO: Consider how to handle initialization error
+		panic(err)
+	}
+	assert.NotNil(t, repo)
 	ctx := context.Background()
 	
 	actressIDs := []string{"1"}
@@ -298,7 +322,12 @@ func TestGetVideosByKeyword(t *testing.T) {
 		os.Setenv("HITS", oldHits)
 	}()
 	
-	repo := NewDMMVideoRepository()
+	repo, err := NewVideoRepository()
+	if err != nil {
+		// TODO: Consider how to handle initialization error
+		panic(err)
+	}
+	assert.NotNil(t, repo)
 	ctx := context.Background()
 	
 	videos, err := repo.GetVideosByKeyword(ctx, "test", 10, 0, "rank", 
