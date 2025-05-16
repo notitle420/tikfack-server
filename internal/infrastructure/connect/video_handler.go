@@ -37,6 +37,12 @@ func NewVideoServiceHandler() *videoServiceServer {
 	}
 }
 
+func NewVideoServiceHandlerWithUsecase(vu video.VideoUsecase) *videoServiceServer {
+	return &videoServiceServer{
+		videoUsecase: vu,
+	}
+}
+
 // GetHandler は、Connect サービスのパターンとハンドラーを返します。
 func (s *videoServiceServer) GetHandler() (string, http.Handler) {
 	// 生成されたコードの関数名に合わせてください
@@ -203,7 +209,7 @@ func convertVideosToPb(videos []entity.Video) []*pb.Video {
 
 // convertToPbVideo は、ドメイン層の Video を pb.Video に変換するヘルパーです。
 func convertToPbVideo(v entity.Video) *pb.Video {
-	return &pb.Video{
+	pbVideo := &pb.Video{
 		DmmId:        v.DmmID,
 		Title:        v.Title,
 		DirectUrl:    v.DirectURL,
@@ -220,7 +226,12 @@ func convertToPbVideo(v entity.Video) *pb.Video {
 		Makers:       convertMakersToPb(v.Makers),
 		Series:       convertSeriesToPb(v.Series),
 		Directors:    convertDirectorsToPb(v.Directors),
+		Review:       convertReviewToPb(v.Review),
 	}
+	
+	// プロトコルバッファオブジェクトをJSON形式でログに出
+	
+	return pbVideo
 }
 
 // 各エンティティの変換関数
@@ -277,4 +288,15 @@ func convertDirectorsToPb(directors []entity.Director) []*pb.Director {
 		})
 	}
 	return result
+}
+
+// レビュー情報の変換関数
+func convertReviewToPb(review entity.Review) *pb.Review {
+	pbReview := &pb.Review{
+		Count:   int32(review.Count),
+		Average: review.Average,
+	}
+	
+	// レビュー情報をログに出力
+	return pbReview
 }

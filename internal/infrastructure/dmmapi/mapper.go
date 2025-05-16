@@ -3,6 +3,8 @@ package dmmapi
 //go:generate mockgen -destination=mock_mapper.go -package=dmmapi github.com/tikfack/server/internal/infrastructure/dmmapi MapperInterface
 
 import (
+	"encoding/json"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -56,7 +58,28 @@ func ConvertItem(item Item) entity.Video {
         sampleURL = item.SampleMovieURL.Size720480
     }
 
-    return entity.Video{
+    // レビュー情報
+    // デフォルト値を設定（将来的にDMM APIがレビュー情報を提供した場合に更新）
+    review := entity.Review{
+        Count:   0,
+        Average: 0,
+    }
+    if item.Review != nil {
+        review.Count = item.Review.Count
+        
+        // 文字列の平均値を数値に変換
+        if average, err := strconv.ParseFloat(item.Review.Average, 32); err == nil {
+            review.Average = float32(average)
+        }
+        
+        log.Printf("Found review info: Count=%d, Average=%s (parsed to %f)\n", 
+            item.Review.Count, item.Review.Average, review.Average)
+    }
+
+    // レビュー情報をログに出力
+    log.Printf("Review info: Count=%d, Average=%f\n", review.Count, review.Average)
+
+    video := entity.Video{
         DmmID:        item.ContentID,
         Title:        item.Title,
         DirectURL:    sampleURL, // サンプル動画URLをDirectURLとして使用
@@ -71,7 +94,14 @@ func ConvertItem(item Item) entity.Video {
         Makers:       makers,
         Series:       series,
         Directors:    directors,
+        Review:       review,
     }
+
+    // 変換後のエンティティをJSON形式でログに出力
+    videoJSON, _ := json.MarshalIndent(video, "", "  ")
+    log.Printf("Converted entity:\n%s\n", string(videoJSON))
+
+    return video
 }
 
 func parsePrice(item Item) int {

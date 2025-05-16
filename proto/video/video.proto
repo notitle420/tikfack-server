@@ -29,6 +29,12 @@ message Director {
   string name = 2;
 }
 
+// レビュー情報
+message Review {
+  int32 count = 1;
+  float average = 2;
+}
+
 // Videoメッセージを重要度順に並び替え
 message Video {
   string dmm_id = 1;
@@ -46,6 +52,8 @@ message Video {
   repeated Maker makers = 12;
   repeated Series series = 13;
   repeated Director directors = 14;
+  
+  Review review = 15;  // レビュー情報
 }
 
 message GetVideosByDateRequest {

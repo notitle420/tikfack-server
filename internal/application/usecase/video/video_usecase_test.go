@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/tikfack/server/internal/domain/entity"
 	mockrepo "github.com/tikfack/server/internal/domain/repository/mock"
+	"go.uber.org/mock/gomock"
 )
 
 func TestNewVideoUsecase(t *testing.T) {
@@ -37,9 +37,23 @@ func TestGetVideosByDate(t *testing.T) {
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
 					GetVideosByDate(gomock.Any(), time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC)).
-					Return([]entity.Video{{DmmID: "test123", Title: "Test Video"}}, nil)
+					Return([]entity.Video{{
+						DmmID: "test123", 
+						Title: "Test Video",
+						Review: entity.Review{
+							Count:   10,
+							Average: 4.2,
+						},
+					}}, nil)
 			},
-			expected:    []entity.Video{{DmmID: "test123", Title: "Test Video"}},
+			expected: []entity.Video{{
+				DmmID: "test123", 
+				Title: "Test Video",
+				Review: entity.Review{
+					Count:   10,
+					Average: 4.2,
+				},
+			}},
 			expectError: false,
 		},
 		{
@@ -119,9 +133,23 @@ func TestGetVideoById(t *testing.T) {
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
 					GetVideoById(gomock.Any(), "test123").
-					Return(&entity.Video{DmmID: "test123", Title: "Test Video"}, nil)
+					Return(&entity.Video{
+						DmmID: "test123", 
+						Title: "Test Video",
+						Review: entity.Review{
+							Count:   15,
+							Average: 3.8,
+						},
+					}, nil)
 			},
-			expected:    &entity.Video{DmmID: "test123", Title: "Test Video"},
+			expected: &entity.Video{
+				DmmID: "test123", 
+				Title: "Test Video",
+				Review: entity.Review{
+					Count:   15,
+					Average: 3.8,
+				},
+			},
 			expectError: false,
 		},
 		{
@@ -211,9 +239,23 @@ func TestSearchVideos(t *testing.T) {
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
 					SearchVideos(gomock.Any(), "keyword", "1", "2", "3", "4", "5").
-					Return([]entity.Video{{DmmID: "test123", Title: "Test Video"}}, nil)
+					Return([]entity.Video{{
+						DmmID: "test123", 
+						Title: "Test Video",
+						Review: entity.Review{
+							Count:   20,
+							Average: 4.5,
+						},
+					}}, nil)
 			},
-			expected:    []entity.Video{{DmmID: "test123", Title: "Test Video"}},
+			expected: []entity.Video{{
+				DmmID: "test123", 
+				Title: "Test Video",
+				Review: entity.Review{
+					Count:   20,
+					Average: 4.5,
+				},
+			}},
 			expectError: false,
 		},
 		{
@@ -340,9 +382,23 @@ func TestGetVideosByID(t *testing.T) {
 					GetVideosByID(gomock.Any(), 
 						[]string{"1"}, []string{"2"}, []string{"3"}, []string{"4"}, []string{"5"},
 						int32(10), int32(0), "rank", "2023-01-01", "2023-12-31", "FANZA", "digital", "videoa").
-					Return([]entity.Video{{DmmID: "test123", Title: "Test Video"}}, nil)
+					Return([]entity.Video{{
+						DmmID: "test123", 
+						Title: "Test Video",
+						Review: entity.Review{
+							Count:   25,
+							Average: 4.3,
+						},
+					}}, nil)
 			},
-			expected:    []entity.Video{{DmmID: "test123", Title: "Test Video"}},
+			expected: []entity.Video{{
+				DmmID: "test123", 
+				Title: "Test Video",
+				Review: entity.Review{
+					Count:   25,
+					Average: 4.3,
+				},
+			}},
 			expectError: false,
 		},
 		{
@@ -520,7 +576,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 	}{
 		{
 			name:    "正常系",
-			keyword: "test",
+			keyword: "keyword",
 			hits:    10,
 			offset:  0,
 			sort:    "rank",
@@ -531,11 +587,26 @@ func TestGetVideosByKeyword(t *testing.T) {
 			floor:   "videoa",
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
-					GetVideosByKeyword(gomock.Any(), "test", int32(10), int32(0), "rank",
+					GetVideosByKeyword(gomock.Any(), 
+						"keyword", int32(10), int32(0), "rank", 
 						"2023-01-01", "2023-12-31", "FANZA", "digital", "videoa").
-					Return([]entity.Video{{DmmID: "test123", Title: "Test Video"}}, nil)
+					Return([]entity.Video{{
+						DmmID: "test123", 
+						Title: "Test Video",
+						Review: entity.Review{
+							Count:   30,
+							Average: 3.9,
+						},
+					}}, nil)
 			},
-			expected:    []entity.Video{{DmmID: "test123", Title: "Test Video"}},
+			expected: []entity.Video{{
+				DmmID: "test123", 
+				Title: "Test Video",
+				Review: entity.Review{
+					Count:   30,
+					Average: 3.9,
+				},
+			}},
 			expectError: false,
 		},
 		{

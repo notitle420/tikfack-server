@@ -19,6 +19,8 @@ type Video struct {
 	Makers     []Maker
 	Series    []Series
 	Directors  []Director
+
+	Review    Review
 }
 
 // Actress は出演女優を表す
@@ -49,4 +51,10 @@ type Series struct {
 type Director struct {
 	ID   string
 	Name string
+}
+
+// Review はレビュー情報を表す
+type Review struct {
+	Count   int
+	Average float32
 }

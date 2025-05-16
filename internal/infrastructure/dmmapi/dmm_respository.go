@@ -3,6 +3,7 @@ package dmmapi
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -55,6 +56,7 @@ func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time) 
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
     }
+    log.Println(resp)
     videos := make([]entity.Video, 0, len(resp.Result.Items))
     for _, item := range resp.Result.Items {
         videos = append(videos,r.mapper.ConvertItem(item))
@@ -73,6 +75,7 @@ func (r *Repository) GetVideoById(ctx context.Context, dmmID string) (*entity.Vi
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
     }
+    log.Println(resp)
     if len(resp.Result.Items) == 0 {
         return nil, fmt.Errorf("動画ID %s が見つかりませんでした", dmmID)
     }

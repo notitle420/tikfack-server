@@ -43,6 +43,10 @@ type Item struct {
             ListPrice string `json:"list_price"`
         }} `json:"deliveries,omitempty"`
     } `json:"prices"`
+    Review        *struct {
+        Count   int     `json:"count"`
+        Average string  `json:"average"`  // JSONではstringとして返ってくる
+    } `json:"review,omitempty"`
     ItemInfo struct {
         Actress  []Actress `json:"actress,omitempty"`
         Genre    []Genre   `json:"genre,omitempty"`

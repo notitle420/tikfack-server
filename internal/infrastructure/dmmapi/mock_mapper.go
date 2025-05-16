@@ -7,7 +7,7 @@ package dmmapi
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 	entity "github.com/tikfack/server/internal/domain/entity"
 )
 
