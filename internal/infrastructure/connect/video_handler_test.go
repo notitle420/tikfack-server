@@ -121,12 +121,12 @@ func TestGetVideosByDate(t *testing.T) {
 		CreatedAt:    now,
 		Price:        1000,
 		LikesCount:   500,
-		Actresses: []entity.Actress{{ID: "a1", Name: "女優A"}},
-		Genres:    []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
-		Makers:    []entity.Maker{{ID: "m1", Name: "メーカーA"}},
-		Series:    []entity.Series{{ID: "s1", Name: "シリーズA"}},
-		Directors: []entity.Director{{ID: "d1", Name: "監督A"}},
-		Review:    entity.Review{Count: 100, Average: 4.5},
+		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
+		Genres:       []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
+		Makers:       []entity.Maker{{ID: "m1", Name: "メーカーA"}},
+		Series:       []entity.Series{{ID: "s1", Name: "シリーズA"}},
+		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
+		Review:       entity.Review{Count: 100, Average: 4.5},
 	}
 	targetDate, _ := time.Parse("2006-01-02", "2024-01-01")
 	tests := []struct {
@@ -137,14 +137,25 @@ func TestGetVideosByDate(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name: "正常系",
+			name:    "正常系",
 			request: &pb.GetVideosByDateRequest{Date: "2024-01-01"},
 			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
 				mockUsecase.EXPECT().
 					GetVideosByDate(gomock.Any(), targetDate).
 					Return([]entity.Video{wantVideo}, nil)
 			},
-			expected:   []entity.Video{wantVideo},
+			expected:    []entity.Video{wantVideo},
+			expectError: false,
+		},
+		{
+			name:    "日付未指定は現在日時を使用",
+			request: &pb.GetVideosByDateRequest{Date: ""},
+			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
+				mockUsecase.EXPECT().
+					GetVideosByDate(gomock.Any(), gomock.Any()).
+					Return([]entity.Video{wantVideo}, nil)
+			},
+			expected:    []entity.Video{wantVideo},
 			expectError: false,
 		},
 		{
@@ -194,12 +205,12 @@ func TestSearchVideos(t *testing.T) {
 		CreatedAt:    now,
 		Price:        1000,
 		LikesCount:   500,
-		Actresses: []entity.Actress{{ID: "a1", Name: "女優A"}},
-		Genres:    []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
-		Makers:    []entity.Maker{{ID: "m1", Name: "メーカーA"}},
-		Series:    []entity.Series{{ID: "s1", Name: "シリーズA"}},
-		Directors: []entity.Director{{ID: "d1", Name: "監督A"}},
-		Review:    entity.Review{Count: 100, Average: 4.5},
+		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
+		Genres:       []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
+		Makers:       []entity.Maker{{ID: "m1", Name: "メーカーA"}},
+		Series:       []entity.Series{{ID: "s1", Name: "シリーズA"}},
+		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
+		Review:       entity.Review{Count: 100, Average: 4.5},
 	}
 	tests := []struct {
 		name        string
@@ -223,7 +234,7 @@ func TestSearchVideos(t *testing.T) {
 					SearchVideos(gomock.Any(), "keyword", "1", "2", "3", "4", "5").
 					Return([]entity.Video{wantVideo}, nil)
 			},
-			expected:   []entity.Video{wantVideo},
+			expected:    []entity.Video{wantVideo},
 			expectError: false,
 		},
 		{
@@ -265,7 +276,6 @@ func TestSearchVideos(t *testing.T) {
 	}
 }
 
-
 // ===== GetVideosByID =====
 func TestGetVideosByID(t *testing.T) {
 	ctx := context.Background()
@@ -279,12 +289,12 @@ func TestGetVideosByID(t *testing.T) {
 		CreatedAt:    now,
 		Price:        1000,
 		LikesCount:   500,
-		Actresses: []entity.Actress{{ID: "a1", Name: "女優A"}},
-		Genres:    []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
-		Makers:    []entity.Maker{{ID: "m1", Name: "メーカーA"}},
-		Series:    []entity.Series{{ID: "s1", Name: "シリーズA"}},
-		Directors: []entity.Director{{ID: "d1", Name: "監督A"}},
-		Review:    entity.Review{Count: 100, Average: 4.5},
+		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
+		Genres:       []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
+		Makers:       []entity.Maker{{ID: "m1", Name: "メーカーA"}},
+		Series:       []entity.Series{{ID: "s1", Name: "シリーズA"}},
+		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
+		Review:       entity.Review{Count: 100, Average: 4.5},
 	}
 	tests := []struct {
 		name        string
@@ -320,7 +330,7 @@ func TestGetVideosByID(t *testing.T) {
 					).
 					Return([]entity.Video{wantVideo}, nil)
 			},
-			expected:   []entity.Video{wantVideo},
+			expected:    []entity.Video{wantVideo},
 			expectError: false,
 		},
 		{
@@ -335,7 +345,7 @@ func TestGetVideosByID(t *testing.T) {
 					).
 					Return([]entity.Video{}, errors.New("get by ID error"))
 			},
-			expected:   nil,
+			expected:    nil,
 			expectError: true,
 		},
 	}
@@ -379,12 +389,12 @@ func TestGetVideoById(t *testing.T) {
 		CreatedAt:    now,
 		Price:        1000,
 		LikesCount:   500,
-		Actresses: []entity.Actress{{ID: "a1", Name: "女優A"}},
-		Genres:    []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
-		Makers:    []entity.Maker{{ID: "m1", Name: "メーカーA"}},
-		Series:    []entity.Series{{ID: "s1", Name: "シリーズA"}},
-		Directors: []entity.Director{{ID: "d1", Name: "監督A"}},
-		Review:    entity.Review{Count: 100, Average: 4.5},
+		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
+		Genres:       []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
+		Makers:       []entity.Maker{{ID: "m1", Name: "メーカーA"}},
+		Series:       []entity.Series{{ID: "s1", Name: "シリーズA"}},
+		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
+		Review:       entity.Review{Count: 100, Average: 4.5},
 	}
 	tests := []struct {
 		name        string
@@ -401,7 +411,7 @@ func TestGetVideoById(t *testing.T) {
 					GetVideoById(gomock.Any(), "test123").
 					Return(&wantVideo, nil)
 			},
-			expected:   &wantVideo,
+			expected:    &wantVideo,
 			expectError: false,
 		},
 		{
@@ -412,7 +422,7 @@ func TestGetVideoById(t *testing.T) {
 					GetVideoById(gomock.Any(), "notfound").
 					Return(nil, errors.New("not found"))
 			},
-			expected:   nil,
+			expected:    nil,
 			expectError: true,
 		},
 	}
@@ -456,12 +466,12 @@ func TestGetVideosByKeyword(t *testing.T) {
 		CreatedAt:    now,
 		Price:        1000,
 		LikesCount:   500,
-		Actresses: []entity.Actress{{ID: "a1", Name: "女優A"}},
-		Genres:    []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
-		Makers:    []entity.Maker{{ID: "m1", Name: "メーカーA"}},
-		Series:    []entity.Series{{ID: "s1", Name: "シリーズA"}},
-		Directors: []entity.Director{{ID: "d1", Name: "監督A"}},
-		Review:    entity.Review{Count: 100, Average: 4.5},
+		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
+		Genres:       []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
+		Makers:       []entity.Maker{{ID: "m1", Name: "メーカーA"}},
+		Series:       []entity.Series{{ID: "s1", Name: "シリーズA"}},
+		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
+		Review:       entity.Review{Count: 100, Average: 4.5},
 	}
 	tests := []struct {
 		name        string
@@ -473,15 +483,15 @@ func TestGetVideosByKeyword(t *testing.T) {
 		{
 			name: "正常系",
 			request: &pb.GetVideosByKeywordRequest{
-				Keyword:  "test",
-				Hits:     10,
-				Offset:   0,
-				Sort:     "rank",
-				GteDate:  "2023-01-01",
-				LteDate:  "2023-12-31",
-				Site:     "FANZA",
-				Service:  "digital",
-				Floor:    "videoa",
+				Keyword: "test",
+				Hits:    10,
+				Offset:  0,
+				Sort:    "rank",
+				GteDate: "2023-01-01",
+				LteDate: "2023-12-31",
+				Site:    "FANZA",
+				Service: "digital",
+				Floor:   "videoa",
 			},
 			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
 				mockUsecase.EXPECT().
@@ -489,7 +499,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 						"2023-01-01", "2023-12-31", "FANZA", "digital", "videoa").
 					Return([]entity.Video{wantVideo}, nil)
 			},
-			expected:   []entity.Video{wantVideo},
+			expected:    []entity.Video{wantVideo},
 			expectError: false,
 		},
 		{
@@ -504,7 +514,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 					).
 					Return([]entity.Video{}, errors.New("get by keyword error"))
 			},
-			expected:   nil,
+			expected:    nil,
 			expectError: true,
 		},
 	}
