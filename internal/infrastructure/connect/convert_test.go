@@ -35,7 +35,7 @@ func TestConvertToPbVideo(t *testing.T) {
 	require.Equal(t, v.URL, pbVideo.Url)
 	require.Equal(t, v.SampleURL, pbVideo.SampleUrl)
 	require.Equal(t, v.ThumbnailURL, pbVideo.ThumbnailUrl)
-	require.Equal(t, created.Format("2006-01-02 15:04:05"), pbVideo.CreatedAt)
+	require.Equal(t, created.Format(time.RFC3339), pbVideo.CreatedAt)
 	require.Equal(t, int32(v.Price), pbVideo.Price)
 	require.Equal(t, int32(v.LikesCount), pbVideo.LikesCount)
 	require.Equal(t, int32(v.Review.Count), pbVideo.Review.Count)

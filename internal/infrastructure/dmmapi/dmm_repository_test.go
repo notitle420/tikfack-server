@@ -16,7 +16,7 @@ import (
 func TestGetVideosByDate(t *testing.T) {
 	ctx := context.Background()
 	fakeDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	
+
 	item := Item{
 		ContentID: "vid1",
 		Title:     "テスト動画",
@@ -30,14 +30,14 @@ func TestGetVideosByDate(t *testing.T) {
 		},
 	}
 	videoEntity := entity.Video{
-		DmmID: "vid1", 
+		DmmID: "vid1",
 		Title: "テスト動画",
 		Review: entity.Review{
 			Count:   5,
 			Average: 4.0,
 		},
 	}
-	
+
 	tests := []struct {
 		name             string
 		date             time.Time
@@ -70,7 +70,7 @@ func TestGetVideosByDate(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -89,7 +89,7 @@ func TestGetVideosByDate(t *testing.T) {
 			},
 			expected:         nil,
 			expectedMetadata: nil,
-			expectedErr:      errors.New("API error"),
+			expectedErr:      ErrAPIError,
 		},
 		{
 			name: "APIがnil項目を返した場合は空配列を返す",
@@ -115,7 +115,7 @@ func TestGetVideosByDate(t *testing.T) {
 						FirstPosition: 0,
 					})
 			},
-			expected:         []entity.Video{},
+			expected: []entity.Video{},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   0,
 				TotalCount:    0,
@@ -124,20 +124,20 @@ func TestGetVideosByDate(t *testing.T) {
 			expectedErr: nil,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			
+
 			mockClient := NewMockClientInterface(ctrl)
 			mockMapper := NewMockMapperInterface(ctrl)
-			
+
 			tt.setupMock(mockClient, mockMapper)
-			
+
 			repo := NewRepositoryWithDeps(mockClient, mockMapper)
 			videos, metadata, err := repo.GetVideosByDate(ctx, tt.date, 10, 0)
-			
+
 			if tt.expectedErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, err, ErrAPIError)
@@ -154,7 +154,7 @@ func TestGetVideosByDate(t *testing.T) {
 
 func TestGetVideoById(t *testing.T) {
 	ctx := context.Background()
-	
+
 	item := Item{
 		ContentID: "vid1",
 		Title:     "テスト動画",
@@ -169,7 +169,7 @@ func TestGetVideoById(t *testing.T) {
 	}
 	createdAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	videoEntity := entity.Video{
-		DmmID:     "vid1", 
+		DmmID:     "vid1",
 		Title:     "テスト動画",
 		CreatedAt: createdAt,
 		Review: entity.Review{
@@ -178,7 +178,7 @@ func TestGetVideoById(t *testing.T) {
 		},
 	}
 	videoNotFoundErr := errors.New("video not found")
-	
+
 	tests := []struct {
 		name        string
 		videoID     string
@@ -215,7 +215,7 @@ func TestGetVideoById(t *testing.T) {
 				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
 			expected:    nil,
-			expectedErr: errors.New("API error"),
+			expectedErr: ErrAPIError,
 		},
 		{
 			name:    "動画が存在しない場合は見つからないエラーを返す",
@@ -229,32 +229,30 @@ func TestGetVideoById(t *testing.T) {
 						*v.(*Response) = *resp
 						return nil
 					})
-				mockMapper.EXPECT().
-					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{}, nil)
+				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
 			expected:    nil,
 			expectedErr: videoNotFoundErr,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			
+
 			mockClient := NewMockClientInterface(ctrl)
 			mockMapper := NewMockMapperInterface(ctrl)
-			
+
 			tt.setupMock(mockClient, mockMapper)
-			
+
 			repo := NewRepositoryWithDeps(mockClient, mockMapper)
 			video, err := repo.GetVideoById(ctx, tt.videoID)
-			
+
 			if tt.expectedErr != nil {
 				require.Error(t, err)
-				if tt.expectedErr == errors.New("API error") {
-					require.ErrorIs(t, err, errors.New("API error"))
+				if errors.Is(tt.expectedErr, ErrAPIError) {
+					require.ErrorIs(t, err, ErrAPIError)
 				} else {
 					require.ErrorContains(t, err, "見つかりませんでした")
 				}
@@ -268,7 +266,7 @@ func TestGetVideoById(t *testing.T) {
 
 func TestSearchVideos(t *testing.T) {
 	ctx := context.Background()
-	
+
 	item := Item{
 		ContentID: "vid1",
 		Title:     "テスト動画",
@@ -282,14 +280,14 @@ func TestSearchVideos(t *testing.T) {
 		},
 	}
 	videoEntity := entity.Video{
-		DmmID: "vid1", 
+		DmmID: "vid1",
 		Title: "テスト動画",
 		Review: entity.Review{
 			Count:   15,
 			Average: 3.5,
 		},
 	}
-	
+
 	tests := []struct {
 		name             string
 		keyword          string
@@ -332,7 +330,7 @@ func TestSearchVideos(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -365,7 +363,7 @@ func TestSearchVideos(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -398,7 +396,7 @@ func TestSearchVideos(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -431,7 +429,7 @@ func TestSearchVideos(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -464,7 +462,7 @@ func TestSearchVideos(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -497,7 +495,7 @@ func TestSearchVideos(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -521,7 +519,7 @@ func TestSearchVideos(t *testing.T) {
 			},
 			expected:         nil,
 			expectedMetadata: nil,
-			expectedErr:      errors.New("API error"),
+			expectedErr:      ErrAPIError,
 		},
 		{
 			name:       "結果が見つからない場合は空配列を返す",
@@ -542,7 +540,7 @@ func TestSearchVideos(t *testing.T) {
 					})
 				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
-			expected:         []entity.Video{},
+			expected: []entity.Video{},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   0,
 				TotalCount:    0,
@@ -551,23 +549,23 @@ func TestSearchVideos(t *testing.T) {
 			expectedErr: nil,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			
+
 			mockClient := NewMockClientInterface(ctrl)
 			mockMapper := NewMockMapperInterface(ctrl)
-			
+
 			tt.setupMock(mockClient, mockMapper)
-			
+
 			repo := NewRepositoryWithDeps(mockClient, mockMapper)
 			videos, metadata, err := repo.SearchVideos(ctx, tt.keyword, tt.actressID, tt.genreID, tt.makerID, tt.seriesID, tt.directorID)
-			
+
 			if tt.expectedErr != nil {
 				assert.Error(t, err)
-				assert.Equal(t, tt.expectedErr, err)
+				assert.ErrorIs(t, err, tt.expectedErr)
 				assert.Nil(t, videos)
 				assert.Nil(t, metadata)
 			} else {
@@ -581,7 +579,7 @@ func TestSearchVideos(t *testing.T) {
 
 func TestGetVideosByID(t *testing.T) {
 	ctx := context.Background()
-	
+
 	item := Item{
 		ContentID: "vid1",
 		Title:     "テスト動画",
@@ -595,14 +593,14 @@ func TestGetVideosByID(t *testing.T) {
 		},
 	}
 	videoEntity := entity.Video{
-		DmmID: "vid1", 
+		DmmID: "vid1",
 		Title: "テスト動画",
 		Review: entity.Review{
 			Count:   20,
 			Average: 4.2,
 		},
 	}
-	
+
 	tests := []struct {
 		name             string
 		actressIDs       []string
@@ -655,7 +653,7 @@ func TestGetVideosByID(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -695,7 +693,7 @@ func TestGetVideosByID(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -735,7 +733,7 @@ func TestGetVideosByID(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -775,7 +773,7 @@ func TestGetVideosByID(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -815,7 +813,7 @@ func TestGetVideosByID(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -855,7 +853,7 @@ func TestGetVideosByID(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -895,7 +893,7 @@ func TestGetVideosByID(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -935,7 +933,7 @@ func TestGetVideosByID(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -966,7 +964,7 @@ func TestGetVideosByID(t *testing.T) {
 			},
 			expected:         nil,
 			expectedMetadata: nil,
-			expectedErr:      errors.New("API error"),
+			expectedErr:      ErrAPIError,
 		},
 		{
 			name:        "結果が見つからない場合は空配列を返す",
@@ -994,7 +992,7 @@ func TestGetVideosByID(t *testing.T) {
 					})
 				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
-			expected:         []entity.Video{},
+			expected: []entity.Video{},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   0,
 				TotalCount:    0,
@@ -1003,25 +1001,25 @@ func TestGetVideosByID(t *testing.T) {
 			expectedErr: nil,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			
+
 			mockClient := NewMockClientInterface(ctrl)
 			mockMapper := NewMockMapperInterface(ctrl)
-			
+
 			tt.setupMock(mockClient, mockMapper)
-			
+
 			repo := NewRepositoryWithDeps(mockClient, mockMapper)
-			videos, metadata, err := repo.GetVideosByID(ctx, 
+			videos, metadata, err := repo.GetVideosByID(ctx,
 				tt.actressIDs, tt.genreIDs, tt.makerIDs, tt.seriesIDs, tt.directorIDs,
 				tt.hits, tt.offset, tt.sort, tt.gteDate, tt.lteDate, tt.site, tt.service, tt.floor)
-			
+
 			if tt.expectedErr != nil {
 				assert.Error(t, err)
-				assert.Equal(t, tt.expectedErr, err)
+				assert.ErrorIs(t, err, tt.expectedErr)
 				assert.Nil(t, videos)
 				assert.Nil(t, metadata)
 			} else {
@@ -1048,14 +1046,14 @@ func TestGetVideosByKeyword(t *testing.T) {
 		},
 	}
 	videoEntity := entity.Video{
-		DmmID: "vid1", 
+		DmmID: "vid1",
 		Title: "テスト動画",
 		Review: entity.Review{
 			Count:   25,
 			Average: 3.8,
 		},
 	}
-	
+
 	tests := []struct {
 		name             string
 		keyword          string
@@ -1104,7 +1102,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -1144,7 +1142,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 						FirstPosition: 6,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    10,
@@ -1184,7 +1182,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -1224,7 +1222,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -1264,7 +1262,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 						FirstPosition: 1,
 					})
 			},
-			expected:         []entity.Video{videoEntity},
+			expected: []entity.Video{videoEntity},
 			expectedMetadata: &entity.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
@@ -1291,10 +1289,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 			},
 			expected:         nil,
 			expectedMetadata: nil,
-			expectedErr:      errors.New("API error"),
+			expectedErr:      ErrAPIError,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -1309,7 +1307,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 			videos, metadata, err := repo.GetVideosByKeyword(ctx, tt.keyword, tt.hits, tt.offset, tt.sort, tt.gteDate, tt.lteDate, tt.site, tt.service, tt.floor)
 			if tt.expectedErr != nil {
 				assert.Error(t, err)
-				assert.Equal(t, tt.expectedErr, err)
+				assert.ErrorIs(t, err, tt.expectedErr)
 				assert.Nil(t, videos)
 				assert.Nil(t, metadata)
 			} else {
