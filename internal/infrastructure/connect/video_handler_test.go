@@ -160,7 +160,7 @@ func TestGetVideosByDate(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
-			handler := &videoServiceServer{videoUsecase: mockUsecase}
+			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.setupMock(mockUsecase)
 			req := connect.NewRequest(tt.request)
 			resp, err := handler.GetVideosByDate(ctx, req)
@@ -421,7 +421,7 @@ func TestGetVideoById(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
-			handler := &videoServiceServer{videoUsecase: mockUsecase}
+			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.setupMock(mockUsecase)
 			req := connect.NewRequest(tt.request)
 			resp, err := handler.GetVideoById(ctx, req)
@@ -513,7 +513,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
-			handler := &videoServiceServer{videoUsecase: mockUsecase}
+			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.setupMock(mockUsecase)
 			req := connect.NewRequest(tt.request)
 			resp, err := handler.GetVideosByKeyword(ctx, req)
