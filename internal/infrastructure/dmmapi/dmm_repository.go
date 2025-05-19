@@ -76,9 +76,9 @@ func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time, 
 	if err := r.client.Call(path, &resp); err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrAPIError, err)
 	}
-	
+
 	videos, metadata := r.mapper.ConvertEntityFromDMM(resp.Result)
-	
+
 	// 先頭5件のみを抽出してログ出力
 	if len(videos) > 0 {
 		sampleSize := min(5, len(videos))
@@ -87,7 +87,7 @@ func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time, 
 	} else {
 		r.logger.Debug("No videos found")
 	}
-	
+
 	return videos, metadata, nil
 }
 
@@ -100,7 +100,7 @@ func (r *Repository) GetVideoById(ctx context.Context, dmmID string) (*entity.Vi
 	r.logger.Debug("calling API", "path", path)
 	var resp Response
 	if err := r.client.Call(path, &resp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrAPIError, err)
 	}
 	if len(resp.Result.Items) == 0 {
 		return nil, fmt.Errorf("動画ID %s が見つかりませんでした", dmmID)
@@ -118,7 +118,7 @@ func (r *Repository) SearchVideos(
 	if keyword != "" {
 		params = append(params, fmt.Sprintf("keyword=%s", keyword))
 	}
-	
+
 	articleIdx := 0
 	if actressID != "" {
 		params = append(params, fmt.Sprintf("article[%d]=actress", articleIdx))
@@ -145,14 +145,23 @@ func (r *Repository) SearchVideos(
 		params = append(params, fmt.Sprintf("article_id[%d]=%s", articleIdx, directorID))
 		articleIdx++
 	}
-	
+
 	path := "/v3/ItemList?" + strings.Join(params, "&")
 	r.logger.Debug("calling API", "path", path)
 	var resp Response
 	if err := r.client.Call(path, &resp); err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrAPIError, err)
 	}
-	
+
+	if len(resp.Result.Items) == 0 {
+		md := &entity.SearchMetadata{
+			ResultCount:   resp.Result.ResultCount,
+			TotalCount:    resp.Result.TotalCount,
+			FirstPosition: resp.Result.FirstPosition,
+		}
+		return []entity.Video{}, md, nil
+	}
+
 	videos, metadata := r.mapper.ConvertEntityFromDMM(resp.Result)
 	return videos, metadata, nil
 }
@@ -169,7 +178,7 @@ func (r *Repository) GetVideosByID(
 		fmt.Sprintf("service=%s", defaultIfEmpty(service, "digital")),
 		fmt.Sprintf("floor=%s", defaultIfEmpty(floor, "videoa")),
 	}
-	
+
 	if hits > 0 {
 		params = append(params, fmt.Sprintf("hits=%d", hits))
 	}
@@ -185,7 +194,7 @@ func (r *Repository) GetVideosByID(
 	if lteDate != "" {
 		params = append(params, fmt.Sprintf("lte_date=%s", lteDate))
 	}
-	
+
 	articleIdx := 0
 	for _, id := range actressIDs {
 		if id != "" {
@@ -222,14 +231,23 @@ func (r *Repository) GetVideosByID(
 			articleIdx++
 		}
 	}
-	
+
 	path := "/v3/ItemList?" + strings.Join(params, "&")
 	r.logger.Debug("calling API", "path", path)
 	var resp Response
 	if err := r.client.Call(path, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("%w: %v", ErrAPIError, err)
 	}
-	
+
+	if len(resp.Result.Items) == 0 {
+		md := &entity.SearchMetadata{
+			ResultCount:   resp.Result.ResultCount,
+			TotalCount:    resp.Result.TotalCount,
+			FirstPosition: resp.Result.FirstPosition,
+		}
+		return []entity.Video{}, md, nil
+	}
+
 	videos, metadata := r.mapper.ConvertEntityFromDMM(resp.Result)
 	return videos, metadata, nil
 }
@@ -246,7 +264,7 @@ func (r *Repository) GetVideosByKeyword(
 		fmt.Sprintf("service=%s", defaultIfEmpty(service, "digital")),
 		fmt.Sprintf("floor=%s", defaultIfEmpty(floor, "videoa")),
 	}
-	
+
 	if keyword != "" {
 		params = append(params, fmt.Sprintf("keyword=%s", keyword))
 	}
@@ -265,14 +283,14 @@ func (r *Repository) GetVideosByKeyword(
 	if lteDate != "" {
 		params = append(params, fmt.Sprintf("lte_date=%s", lteDate))
 	}
-	
+
 	path := "/v3/ItemList?" + strings.Join(params, "&")
 	r.logger.Debug("calling API", "path", path)
 	var resp Response
 	if err := r.client.Call(path, &resp); err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrAPIError, err)
 	}
-	
+
 	videos, metadata := r.mapper.ConvertEntityFromDMM(resp.Result)
 	return videos, metadata, nil
 }
@@ -291,4 +309,4 @@ func min(a, b int) int {
 		return a
 	}
 	return b
-} 
+}
