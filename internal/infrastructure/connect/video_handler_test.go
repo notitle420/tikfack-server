@@ -7,7 +7,10 @@ import (
 	"time"
 
 	"github.com/bufbuild/connect-go"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "github.com/tikfack/server/gen/video"
 	mockvideo "github.com/tikfack/server/internal/application/usecase/mock"
@@ -18,107 +21,16 @@ import (
 func eqInt32(want int32) gomock.Matcher   { return gomock.Eq(want) }
 func eqString(want string) gomock.Matcher { return gomock.Eq(want) }
 
-// ===== 共通比較ヘルパー =====
-func checkVideoFields(t *testing.T, got entity.Video, want entity.Video) {
-	if got.DmmID != want.DmmID {
-		t.Errorf("DmmID: got %v, want %v", got.DmmID, want.DmmID)
-	}
-	if got.Title != want.Title {
-		t.Errorf("Title: got %v, want %v", got.Title, want.Title)
-	}
-	if got.URL != want.URL {
-		t.Errorf("URL: got %v, want %v", got.URL, want.URL)
-	}
-	if got.SampleURL != want.SampleURL {
-		t.Errorf("SampleURL: got %v, want %v", got.SampleURL, want.SampleURL)
-	}
-	if got.ThumbnailURL != want.ThumbnailURL {
-		t.Errorf("ThumbnailURL: got %v, want %v", got.ThumbnailURL, want.ThumbnailURL)
-	}
-	if !got.CreatedAt.Equal(want.CreatedAt) {
-		t.Errorf("CreatedAt: got %v, want %v", got.CreatedAt, want.CreatedAt)
-	}
-	if got.Price != want.Price {
-		t.Errorf("Price: got %v, want %v", got.Price, want.Price)
-	}
-	if got.LikesCount != want.LikesCount {
-		t.Errorf("LikesCount: got %v, want %v", got.LikesCount, want.LikesCount)
-	}
-	checkActresses(t, got.Actresses, want.Actresses)
-	checkGenres(t, got.Genres, want.Genres)
-	checkMakers(t, got.Makers, want.Makers)
-	checkSeries(t, got.Series, want.Series)
-	checkDirectors(t, got.Directors, want.Directors)
-	if got.Review.Count != want.Review.Count || got.Review.Average != want.Review.Average {
-		t.Errorf("Review: got %+v, want %+v", got.Review, want.Review)
-	}
-}
-func checkActresses(t *testing.T, got, want []entity.Actress) {
-	if len(got) != len(want) {
-		t.Errorf("Actresses: got %v, want %v", got, want)
-		return
-	}
-	for i := range got {
-		if got[i].ID != want[i].ID || got[i].Name != want[i].Name {
-			t.Errorf("Actresses[%d]: got %+v, want %+v", i, got[i], want[i])
-		}
-	}
-}
-func checkGenres(t *testing.T, got, want []entity.Genre) {
-	if len(got) != len(want) {
-		t.Errorf("Genres: got %v, want %v", got, want)
-		return
-	}
-	for i := range got {
-		if got[i].ID != want[i].ID || got[i].Name != want[i].Name {
-			t.Errorf("Genres[%d]: got %+v, want %+v", i, got[i], want[i])
-		}
-	}
-}
-func checkMakers(t *testing.T, got, want []entity.Maker) {
-	if len(got) != len(want) {
-		t.Errorf("Makers: got %v, want %v", got, want)
-		return
-	}
-	for i := range got {
-		if got[i].ID != want[i].ID || got[i].Name != want[i].Name {
-			t.Errorf("Makers[%d]: got %+v, want %+v", i, got[i], want[i])
-		}
-	}
-}
-func checkSeries(t *testing.T, got, want []entity.Series) {
-	if len(got) != len(want) {
-		t.Errorf("Series: got %v, want %v", got, want)
-		return
-	}
-	for i := range got {
-		if got[i].ID != want[i].ID || got[i].Name != want[i].Name {
-			t.Errorf("Series[%d]: got %+v, want %+v", i, got[i], want[i])
-		}
-	}
-}
-func checkDirectors(t *testing.T, got, want []entity.Director) {
-	if len(got) != len(want) {
-		t.Errorf("Directors: got %v, want %v", got, want)
-		return
-	}
-	for i := range got {
-		if got[i].ID != want[i].ID || got[i].Name != want[i].Name {
-			t.Errorf("Directors[%d]: got %+v, want %+v", i, got[i], want[i])
-		}
-	}
-}
-
-func TestGetVideosByDate(t *testing.T) {
-	ctx := context.Background()
-	now := time.Now()
-	wantVideo := entity.Video{
+// ===== 共通テストデータ =====
+var (
+	testTime = time.Date(2024, 1, 2, 15, 4, 5, 0, time.UTC)
+	testVideo = entity.Video{
 		DmmID:        "test123",
 		Title:        "動画1",
 		URL:          "https://example.com",
 		SampleURL:    "https://example.com/sample",
 		ThumbnailURL: "https://example.com/thumb.jpg",
-		CreatedAt:    now,
+		CreatedAt:    testTime,
 		Price:        1000,
 		LikesCount:   500,
 		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
@@ -128,96 +40,258 @@ func TestGetVideosByDate(t *testing.T) {
 		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
 		Review:       entity.Review{Count: 100, Average: 4.5},
 	}
-	targetDate, _ := time.Parse("2006-01-02", "2024-01-01")
+	testMetadata = &entity.SearchMetadata{
+		ResultCount:   10,
+		TotalCount:    100,
+		FirstPosition: 1,
+	}
+)
+
+// ===== 共通比較ヘルパー =====
+func checkVideoFields(t *testing.T, got *pb.Video, want entity.Video) {
+	require.Equal(t, want.DmmID, got.DmmId)
+	require.Equal(t, want.Title, got.Title)
+	require.Equal(t, want.URL, got.Url)
+	require.Equal(t, want.SampleURL, got.SampleUrl)
+	require.Equal(t, want.ThumbnailURL, got.ThumbnailUrl)
+	require.Equal(t, want.CreatedAt.Format(time.RFC3339), got.CreatedAt)
+	require.Equal(t, int32(want.Price), got.Price)
+	require.Equal(t, int32(want.LikesCount), got.LikesCount)
+	require.Equal(t, int32(want.Review.Count), got.Review.Count)
+	require.Equal(t, want.Review.Average, got.Review.Average)
+	
+	require.Len(t, got.Actresses, len(want.Actresses))
+	for i, a := range want.Actresses {
+		require.Equal(t, a.ID, got.Actresses[i].Id)
+		require.Equal(t, a.Name, got.Actresses[i].Name)
+	}
+	
+	require.Len(t, got.Genres, len(want.Genres))
+	for i, g := range want.Genres {
+		require.Equal(t, g.ID, got.Genres[i].Id)
+		require.Equal(t, g.Name, got.Genres[i].Name)
+	}
+	
+	require.Len(t, got.Makers, len(want.Makers))
+	for i, m := range want.Makers {
+		require.Equal(t, m.ID, got.Makers[i].Id)
+		require.Equal(t, m.Name, got.Makers[i].Name)
+	}
+	
+	require.Len(t, got.Series, len(want.Series))
+	for i, s := range want.Series {
+		require.Equal(t, s.ID, got.Series[i].Id)
+		require.Equal(t, s.Name, got.Series[i].Name)
+	}
+	
+	require.Len(t, got.Directors, len(want.Directors))
+	for i, d := range want.Directors {
+		require.Equal(t, d.ID, got.Directors[i].Id)
+		require.Equal(t, d.Name, got.Directors[i].Name)
+	}
+}
+
+func checkMetadata(t *testing.T, got *pb.SearchMetadata, want *entity.SearchMetadata) {
+	if want == nil {
+		require.Nil(t, got)
+		return
+	}
+	require.NotNil(t, got)
+	require.Equal(t, int32(want.ResultCount), got.ResultCount)
+	require.Equal(t, int32(want.TotalCount), got.TotalCount)
+	require.Equal(t, int32(want.FirstPosition), got.FirstPosition)
+}
+
+func TestGetVideosByDate(t *testing.T) {
 	tests := []struct {
-		name        string
-		request     *pb.GetVideosByDateRequest
-		setupMock   func(mockUsecase *mockvideo.MockVideoUsecase)
-		expected    []entity.Video
-		expectError bool
+		name           string
+		req            *pb.GetVideosByDateRequest
+		mockSetup      func(m *mockvideo.MockVideoUsecase)
+		expectedVideos []entity.Video
+		expectedMD     *entity.SearchMetadata
+		expectedError  error
 	}{
 		{
-			name:    "正常系",
-			request: &pb.GetVideosByDateRequest{Date: "2024-01-01"},
-			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
-				mockUsecase.EXPECT().
-					GetVideosByDate(gomock.Any(), targetDate).
-					Return([]entity.Video{wantVideo}, nil)
+			name: "正常系：日付指定で取得",
+			req: &pb.GetVideosByDateRequest{
+				Date:   "2024-01-01",
+				Hits:   20,
+				Offset: 0,
 			},
-			expected:    []entity.Video{wantVideo},
-			expectError: false,
+			mockSetup: func(m *mockvideo.MockVideoUsecase) {
+				targetDate, _ := time.Parse("2006-01-02", "2024-01-01")
+				m.EXPECT().
+					GetVideosByDate(gomock.Any(), targetDate, int32(20), int32(0)).
+					Return([]entity.Video{testVideo}, testMetadata, nil)
+			},
+			expectedVideos: []entity.Video{testVideo},
+			expectedMD:     testMetadata,
+			expectedError:  nil,
 		},
 		{
-			name:    "日付未指定は現在日時を使用",
-			request: &pb.GetVideosByDateRequest{Date: ""},
-			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
-				mockUsecase.EXPECT().
-					GetVideosByDate(gomock.Any(), gomock.Any()).
-					Return([]entity.Video{wantVideo}, nil)
+			name: "正常系：日付未指定で現在日時で取得",
+			req: &pb.GetVideosByDateRequest{
+				Hits:   20,
+				Offset: 0,
 			},
-			expected:    []entity.Video{wantVideo},
-			expectError: false,
+			mockSetup: func(m *mockvideo.MockVideoUsecase) {
+				m.EXPECT().
+					GetVideosByDate(gomock.Any(), gomock.Any(), int32(20), int32(0)).
+					DoAndReturn(func(_ context.Context, date time.Time, hits, offset int32) ([]entity.Video, *entity.SearchMetadata, error) {
+						// 現在時刻との差分が1秒以内であることを確認
+						if time.Since(date) > time.Second {
+							t.Error("期待される日時との差分が大きすぎます")
+						}
+						return []entity.Video{testVideo}, testMetadata, nil
+					})
+			},
+			expectedVideos: []entity.Video{testVideo},
+			expectedMD:     testMetadata,
+			expectedError:  nil,
 		},
 		{
-			name:        "異常系 - 不正な日付形式",
-			request:     &pb.GetVideosByDateRequest{Date: "invalid-date"},
-			setupMock:   func(mockUsecase *mockvideo.MockVideoUsecase) {},
-			expected:    nil,
-			expectError: true,
+			name: "正常系：ページネーション",
+			req: &pb.GetVideosByDateRequest{
+				Date:   "2024-01-01",
+				Hits:   10,
+				Offset: 20,
+			},
+			mockSetup: func(m *mockvideo.MockVideoUsecase) {
+				targetDate, _ := time.Parse("2006-01-02", "2024-01-01")
+				m.EXPECT().
+					GetVideosByDate(gomock.Any(), targetDate, int32(10), int32(20)).
+					Return([]entity.Video{testVideo}, testMetadata, nil)
+			},
+			expectedVideos: []entity.Video{testVideo},
+			expectedMD:     testMetadata,
+			expectedError:  nil,
+		},
+		{
+			name: "正常系：hitsの最大値制限",
+			req: &pb.GetVideosByDateRequest{
+				Date:   "2024-01-01",
+				Hits:   200, // 最大値100を超える
+				Offset: 0,
+			},
+			mockSetup: func(m *mockvideo.MockVideoUsecase) {
+				targetDate, _ := time.Parse("2006-01-02", "2024-01-01")
+				m.EXPECT().
+					GetVideosByDate(gomock.Any(), targetDate, int32(100), int32(0)). // 100に制限される
+					Return([]entity.Video{testVideo}, testMetadata, nil)
+			},
+			expectedVideos: []entity.Video{testVideo},
+			expectedMD:     testMetadata,
+			expectedError:  nil,
+		},
+		{
+			name: "正常系：offsetの最大値制限",
+			req: &pb.GetVideosByDateRequest{
+				Date:   "2024-01-01",
+				Hits:   20,
+				Offset: 60000, // 最大値50000を超える
+			},
+			mockSetup: func(m *mockvideo.MockVideoUsecase) {
+				targetDate, _ := time.Parse("2006-01-02", "2024-01-01")
+				m.EXPECT().
+					GetVideosByDate(gomock.Any(), targetDate, int32(20), int32(50000)). // 50000に制限される
+					Return([]entity.Video{testVideo}, testMetadata, nil)
+			},
+			expectedVideos: []entity.Video{testVideo},
+			expectedMD:     testMetadata,
+			expectedError:  nil,
+		},
+		{
+			name: "正常系：offsetの最小値制限",
+			req: &pb.GetVideosByDateRequest{
+				Date:   "2024-01-01",
+				Hits:   20,
+				Offset: -10, // 最小値0を下回る
+			},
+			mockSetup: func(m *mockvideo.MockVideoUsecase) {
+				targetDate, _ := time.Parse("2006-01-02", "2024-01-01")
+				m.EXPECT().
+					GetVideosByDate(gomock.Any(), targetDate, int32(20), int32(0)). // 0に制限される
+					Return([]entity.Video{testVideo}, testMetadata, nil)
+			},
+			expectedVideos: []entity.Video{testVideo},
+			expectedMD:     testMetadata,
+			expectedError:  nil,
+		},
+		{
+			name: "エラー系：不正な日付形式",
+			req: &pb.GetVideosByDateRequest{
+				Date:   "invalid-date",
+				Hits:   20,
+				Offset: 0,
+			},
+			mockSetup:      func(m *mockvideo.MockVideoUsecase) {},
+			expectedVideos: nil,
+			expectedMD:     nil,
+			expectedError:  status.Error(codes.InvalidArgument, "不正な日付形式です"),
+		},
+		{
+			name: "エラー系：ユースケースでエラー",
+			req: &pb.GetVideosByDateRequest{
+				Date:   "2024-01-01",
+				Hits:   20,
+				Offset: 0,
+			},
+			mockSetup: func(m *mockvideo.MockVideoUsecase) {
+				targetDate, _ := time.Parse("2006-01-02", "2024-01-01")
+				m.EXPECT().
+					GetVideosByDate(gomock.Any(), targetDate, int32(20), int32(0)).
+					Return(nil, nil, errors.New("database error"))
+			},
+			expectedVideos: nil,
+			expectedMD:     nil,
+			expectedError:  status.Error(codes.Internal, "動画の取得に失敗しました: database error"),
 		},
 	}
+	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
+			
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
 			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
-			tt.setupMock(mockUsecase)
-			req := connect.NewRequest(tt.request)
-			resp, err := handler.GetVideosByDate(ctx, req)
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("%s: expected error, got none", tt.name)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("%s: unexpected error: %v", tt.name, err)
-				}
-				if resp == nil || resp.Msg == nil || len(resp.Msg.Videos) == 0 {
-					t.Fatalf("%s: response or videos empty", tt.name)
-				}
-				got := wantVideo // pb.Video→entity.Videoのマッピングを適宜追加
-				checkVideoFields(t, got, tt.expected[0])
+			tt.mockSetup(mockUsecase)
+			
+			req := connect.NewRequest(tt.req)
+			resp, err := handler.GetVideosByDate(context.Background(), req)
+			
+			if tt.expectedError != nil {
+				require.Error(t, err)
+				require.Equal(t, tt.expectedError.Error(), err.Error())
+				return
 			}
+			
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.NotNil(t, resp.Msg)
+			
+			if len(tt.expectedVideos) > 0 {
+				require.NotEmpty(t, resp.Msg.Videos)
+				checkVideoFields(t, resp.Msg.Videos[0], tt.expectedVideos[0])
+			} else {
+				require.Empty(t, resp.Msg.Videos)
+			}
+			checkMetadata(t, resp.Msg.Metadata, tt.expectedMD)
 		})
 	}
 }
 
 func TestSearchVideos(t *testing.T) {
 	ctx := context.Background()
-	now := time.Now()
-	wantVideo := entity.Video{
-		DmmID:        "test123",
-		Title:        "動画1",
-		URL:          "https://example.com",
-		SampleURL:    "https://example.com/sample",
-		ThumbnailURL: "https://example.com/thumb.jpg",
-		CreatedAt:    now,
-		Price:        1000,
-		LikesCount:   500,
-		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
-		Genres:       []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
-		Makers:       []entity.Maker{{ID: "m1", Name: "メーカーA"}},
-		Series:       []entity.Series{{ID: "s1", Name: "シリーズA"}},
-		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
-		Review:       entity.Review{Count: 100, Average: 4.5},
-	}
+	
 	tests := []struct {
 		name        string
 		request     *pb.SearchVideosRequest
 		setupMock   func(mockUsecase *mockvideo.MockVideoUsecase)
 		expected    []entity.Video
+		expectedMD  *entity.SearchMetadata
 		expectError bool
+		errorCode   codes.Code
 	}{
 		{
 			name: "正常系",
@@ -232,9 +306,10 @@ func TestSearchVideos(t *testing.T) {
 			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
 				mockUsecase.EXPECT().
 					SearchVideos(gomock.Any(), "keyword", "1", "2", "3", "4", "5").
-					Return([]entity.Video{wantVideo}, nil)
+					Return([]entity.Video{testVideo}, testMetadata, nil)
 			},
-			expected:    []entity.Video{wantVideo},
+			expected:    []entity.Video{testVideo},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
@@ -243,65 +318,64 @@ func TestSearchVideos(t *testing.T) {
 			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
 				mockUsecase.EXPECT().
 					SearchVideos(gomock.Any(), "", "", "", "", "", "").
-					Return([]entity.Video{}, errors.New("search error"))
+					Return(nil, nil, errors.New("search error"))
 			},
 			expected:    nil,
+			expectedMD:  nil,
 			expectError: true,
+			errorCode:   codes.Internal,
 		},
 	}
+	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
+			
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
 			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.setupMock(mockUsecase)
+			
 			req := connect.NewRequest(tt.request)
 			resp, err := handler.SearchVideos(ctx, req)
+			
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("%s: expected error, got none", tt.name)
+				require.Error(t, err)
+				if tt.errorCode != 0 {
+					s, ok := status.FromError(err)
+					require.True(t, ok)
+					require.Equal(t, tt.errorCode, s.Code())
 				}
-			} else {
-				if err != nil {
-					t.Errorf("%s: unexpected error: %v", tt.name, err)
-				}
-				if resp == nil || resp.Msg == nil || len(resp.Msg.Videos) == 0 {
-					t.Fatalf("%s: response or videos empty", tt.name)
-				}
-				got := wantVideo // pb.Video→entity.Videoの変換を適宜追加
-				checkVideoFields(t, got, tt.expected[0])
+				return
 			}
+			
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.NotNil(t, resp.Msg)
+			
+			if len(tt.expected) > 0 {
+				require.NotEmpty(t, resp.Msg.Videos)
+				checkVideoFields(t, resp.Msg.Videos[0], tt.expected[0])
+			} else {
+				require.Empty(t, resp.Msg.Videos)
+			}
+			
+			checkMetadata(t, resp.Msg.Metadata, tt.expectedMD)
 		})
 	}
 }
 
-// ===== GetVideosByID =====
 func TestGetVideosByID(t *testing.T) {
 	ctx := context.Background()
-	now := time.Now()
-	wantVideo := entity.Video{
-		DmmID:        "test123",
-		Title:        "動画1",
-		URL:          "https://example.com",
-		SampleURL:    "https://example.com/sample",
-		ThumbnailURL: "https://example.com/thumb.jpg",
-		CreatedAt:    now,
-		Price:        1000,
-		LikesCount:   500,
-		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
-		Genres:       []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
-		Makers:       []entity.Maker{{ID: "m1", Name: "メーカーA"}},
-		Series:       []entity.Series{{ID: "s1", Name: "シリーズA"}},
-		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
-		Review:       entity.Review{Count: 100, Average: 4.5},
-	}
+	
 	tests := []struct {
 		name        string
 		request     *pb.GetVideosByIDRequest
 		setupMock   func(mockUsecase *mockvideo.MockVideoUsecase)
 		expected    []entity.Video
+		expectedMD  *entity.SearchMetadata
 		expectError bool
+		errorCode   codes.Code
 	}{
 		{
 			name: "正常系",
@@ -323,162 +397,88 @@ func TestGetVideosByID(t *testing.T) {
 			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
 				mockUsecase.EXPECT().
 					GetVideosByID(
-						gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-						eqInt32(10), eqInt32(0), eqString("rank"),
-						eqString("2023-01-01"), eqString("2023-12-31"),
-						eqString("FANZA"), eqString("digital"), eqString("videoa"),
+						gomock.Any(),
+						[]string{"1"}, []string{"2"}, []string{"3"}, []string{"4"}, []string{"5"},
+						int32(10), int32(0), "rank",
+						"2023-01-01", "2023-12-31",
+						"FANZA", "digital", "videoa",
 					).
-					Return([]entity.Video{wantVideo}, nil)
+					Return([]entity.Video{testVideo}, testMetadata, nil)
 			},
-			expected:    []entity.Video{wantVideo},
+			expected:    []entity.Video{testVideo},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
-			name:    "異常系 - IDによる検索エラー",
+			name:    "異常系 - 検索エラー",
 			request: &pb.GetVideosByIDRequest{},
 			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
 				mockUsecase.EXPECT().
 					GetVideosByID(
-						gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-						eqInt32(0), eqInt32(0), eqString(""), eqString(""), eqString(""),
-						eqString(""), eqString(""), eqString(""),
+						gomock.Any(),
+						gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+						int32(0), int32(0), "",
+						"", "",
+						"", "", "",
 					).
-					Return([]entity.Video{}, errors.New("get by ID error"))
+					Return(nil, nil, errors.New("search error"))
 			},
 			expected:    nil,
+			expectedMD:  nil,
 			expectError: true,
+			errorCode:   codes.Internal,
 		},
 	}
+	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
+			
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
 			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.setupMock(mockUsecase)
+			
 			req := connect.NewRequest(tt.request)
 			resp, err := handler.GetVideosByID(ctx, req)
+			
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("%s: expected error, got none", tt.name)
+				require.Error(t, err)
+				if tt.errorCode != 0 {
+					s, ok := status.FromError(err)
+					require.True(t, ok)
+					require.Equal(t, tt.errorCode, s.Code())
 				}
-			} else {
-				if err != nil {
-					t.Errorf("%s: unexpected error: %v", tt.name, err)
-				}
-				if resp == nil || resp.Msg == nil || len(resp.Msg.Videos) == 0 {
-					t.Fatalf("%s: response or videos empty", tt.name)
-				}
-				got := wantVideo // 実際にはpb.Video→entity.Videoの変換が必要
-				checkVideoFields(t, got, tt.expected[0])
+				return
 			}
+			
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.NotNil(t, resp.Msg)
+			
+			if len(tt.expected) > 0 {
+				require.NotEmpty(t, resp.Msg.Videos)
+				checkVideoFields(t, resp.Msg.Videos[0], tt.expected[0])
+			} else {
+				require.Empty(t, resp.Msg.Videos)
+			}
+			
+			checkMetadata(t, resp.Msg.Metadata, tt.expectedMD)
 		})
 	}
 }
 
-// ===== GetVideoById =====
-func TestGetVideoById(t *testing.T) {
-	ctx := context.Background()
-	now := time.Now()
-	wantVideo := entity.Video{
-		DmmID:        "test123",
-		Title:        "動画1",
-		URL:          "https://example.com",
-		SampleURL:    "https://example.com/sample",
-		ThumbnailURL: "https://example.com/thumb.jpg",
-		CreatedAt:    now,
-		Price:        1000,
-		LikesCount:   500,
-		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
-		Genres:       []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
-		Makers:       []entity.Maker{{ID: "m1", Name: "メーカーA"}},
-		Series:       []entity.Series{{ID: "s1", Name: "シリーズA"}},
-		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
-		Review:       entity.Review{Count: 100, Average: 4.5},
-	}
-	tests := []struct {
-		name        string
-		request     *pb.GetVideoByIdRequest
-		setupMock   func(mockUsecase *mockvideo.MockVideoUsecase)
-		expected    *entity.Video
-		expectError bool
-	}{
-		{
-			name:    "正常系",
-			request: &pb.GetVideoByIdRequest{DmmId: "test123"},
-			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
-				mockUsecase.EXPECT().
-					GetVideoById(gomock.Any(), "test123").
-					Return(&wantVideo, nil)
-			},
-			expected:    &wantVideo,
-			expectError: false,
-		},
-		{
-			name:    "異常系 - 動画が見つからない",
-			request: &pb.GetVideoByIdRequest{DmmId: "notfound"},
-			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
-				mockUsecase.EXPECT().
-					GetVideoById(gomock.Any(), "notfound").
-					Return(nil, errors.New("not found"))
-			},
-			expected:    nil,
-			expectError: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
-			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
-			tt.setupMock(mockUsecase)
-			req := connect.NewRequest(tt.request)
-			resp, err := handler.GetVideoById(ctx, req)
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("%s: expected error, got none", tt.name)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("%s: unexpected error: %v", tt.name, err)
-				}
-				if resp == nil || resp.Msg == nil || resp.Msg.Video == nil {
-					t.Fatalf("%s: response or video empty", tt.name)
-				}
-				got := wantVideo // pb.Video→entity.Video変換が必要ならここで
-				checkVideoFields(t, got, *tt.expected)
-			}
-		})
-	}
-}
-
-// ===== GetVideosByKeyword =====
 func TestGetVideosByKeyword(t *testing.T) {
 	ctx := context.Background()
-	now := time.Now()
-	wantVideo := entity.Video{
-		DmmID:        "test123",
-		Title:        "動画1",
-		URL:          "https://example.com",
-		SampleURL:    "https://example.com/sample",
-		ThumbnailURL: "https://example.com/thumb.jpg",
-		CreatedAt:    now,
-		Price:        1000,
-		LikesCount:   500,
-		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
-		Genres:       []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
-		Makers:       []entity.Maker{{ID: "m1", Name: "メーカーA"}},
-		Series:       []entity.Series{{ID: "s1", Name: "シリーズA"}},
-		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
-		Review:       entity.Review{Count: 100, Average: 4.5},
-	}
+	
 	tests := []struct {
 		name        string
 		request     *pb.GetVideosByKeywordRequest
 		setupMock   func(mockUsecase *mockvideo.MockVideoUsecase)
 		expected    []entity.Video
+		expectedMD  *entity.SearchMetadata
 		expectError bool
+		errorCode   codes.Code
 	}{
 		{
 			name: "正常系",
@@ -495,52 +495,156 @@ func TestGetVideosByKeyword(t *testing.T) {
 			},
 			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
 				mockUsecase.EXPECT().
-					GetVideosByKeyword(gomock.Any(), "test", int32(10), int32(0), "rank",
-						"2023-01-01", "2023-12-31", "FANZA", "digital", "videoa").
-					Return([]entity.Video{wantVideo}, nil)
+					GetVideosByKeyword(
+						gomock.Any(),
+						"test",
+						int32(10), int32(0),
+						"rank",
+						"2023-01-01", "2023-12-31",
+						"FANZA", "digital", "videoa",
+					).
+					Return([]entity.Video{testVideo}, testMetadata, nil)
 			},
-			expected:    []entity.Video{wantVideo},
+			expected:    []entity.Video{testVideo},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
-			name:    "異常系 - キーワードによる検索エラー",
+			name:    "異常系 - 検索エラー",
 			request: &pb.GetVideosByKeywordRequest{},
 			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
 				mockUsecase.EXPECT().
 					GetVideosByKeyword(
 						gomock.Any(),
-						eqString(""), eqInt32(0), eqInt32(0), eqString(""),
-						eqString(""), eqString(""), eqString(""), eqString(""), eqString(""),
+						"",
+						int32(0), int32(0),
+						"",
+						"", "",
+						"", "", "",
 					).
-					Return([]entity.Video{}, errors.New("get by keyword error"))
+					Return(nil, nil, errors.New("search error"))
 			},
 			expected:    nil,
+			expectedMD:  nil,
 			expectError: true,
+			errorCode:   codes.Internal,
 		},
 	}
+	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
+			
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
 			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.setupMock(mockUsecase)
+			
 			req := connect.NewRequest(tt.request)
 			resp, err := handler.GetVideosByKeyword(ctx, req)
+			
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("%s: expected error, got none", tt.name)
+				require.Error(t, err)
+				if tt.errorCode != 0 {
+					s, ok := status.FromError(err)
+					require.True(t, ok)
+					require.Equal(t, tt.errorCode, s.Code())
 				}
-			} else {
-				if err != nil {
-					t.Errorf("%s: unexpected error: %v", tt.name, err)
-				}
-				if resp == nil || resp.Msg == nil || len(resp.Msg.Videos) == 0 {
-					t.Fatalf("%s: response or videos empty", tt.name)
-				}
-				got := wantVideo
-				checkVideoFields(t, got, tt.expected[0])
+				return
 			}
+			
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.NotNil(t, resp.Msg)
+			
+			if len(tt.expected) > 0 {
+				require.NotEmpty(t, resp.Msg.Videos)
+				checkVideoFields(t, resp.Msg.Videos[0], tt.expected[0])
+			} else {
+				require.Empty(t, resp.Msg.Videos)
+			}
+			
+			checkMetadata(t, resp.Msg.Metadata, tt.expectedMD)
+		})
+	}
+}
+
+func TestGetVideoById(t *testing.T) {
+	ctx := context.Background()
+	
+	tests := []struct {
+		name        string
+		request     *pb.GetVideoByIdRequest
+		setupMock   func(mockUsecase *mockvideo.MockVideoUsecase)
+		expected    *entity.Video
+		expectError bool
+		errorCode   codes.Code
+	}{
+		{
+			name:    "正常系",
+			request: &pb.GetVideoByIdRequest{DmmId: "test123"},
+			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
+				mockUsecase.EXPECT().
+					GetVideoById(gomock.Any(), "test123").
+					Return(&testVideo, nil)
+			},
+			expected:    &testVideo,
+			expectError: false,
+		},
+		{
+			name:    "異常系 - 動画が見つからない",
+			request: &pb.GetVideoByIdRequest{DmmId: "notfound"},
+			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
+				mockUsecase.EXPECT().
+					GetVideoById(gomock.Any(), "notfound").
+					Return(nil, nil)
+			},
+			expected:    nil,
+			expectError: true,
+			errorCode:   codes.NotFound,
+		},
+		{
+			name:    "異常系 - ユースケースエラー",
+			request: &pb.GetVideoByIdRequest{DmmId: "test123"},
+			setupMock: func(mockUsecase *mockvideo.MockVideoUsecase) {
+				mockUsecase.EXPECT().
+					GetVideoById(gomock.Any(), "test123").
+					Return(nil, errors.New("usecase error"))
+			},
+			expected:    nil,
+			expectError: true,
+			errorCode:   codes.Internal,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			
+			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
+			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
+			tt.setupMock(mockUsecase)
+			
+			req := connect.NewRequest(tt.request)
+			resp, err := handler.GetVideoById(ctx, req)
+			
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorCode != 0 {
+					s, ok := status.FromError(err)
+					require.True(t, ok)
+					require.Equal(t, tt.errorCode, s.Code())
+				}
+				return
+			}
+			
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.NotNil(t, resp.Msg)
+			require.NotNil(t, resp.Msg.Video)
+			
+			checkVideoFields(t, resp.Msg.Video, *tt.expected)
 		})
 	}
 }

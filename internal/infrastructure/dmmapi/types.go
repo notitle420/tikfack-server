@@ -56,8 +56,14 @@ type Item struct {
     } `json:"iteminfo"`
 }
 
+type Result struct {
+	Status        int    `json:"status"`
+	ResultCount   int    `json:"result_count"`
+	TotalCount    int    `json:"total_count"`
+	FirstPosition int    `json:"first_position"`
+	Items         []Item `json:"items"`
+}
+
 type Response struct {
-    Result struct {
-        Items []Item `json:"items"`
-    } `json:"result"`
+    Result Result `json:"result"`
 }

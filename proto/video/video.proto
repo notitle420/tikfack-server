@@ -57,11 +57,14 @@ message Video {
 }
 
 message GetVideosByDateRequest {
-  string date = 1; // Optional date filter
+  string date = 1;    // Optional date filter
+  int32 hits = 2;     // 取得件数（初期値：20、最大：100、省略可）
+  int32 offset = 3;   // 検索開始位置（初期値：1、最大：50000、省略可）
 }
 
 message GetVideosByDateResponse {
   repeated Video videos = 1;
+  SearchMetadata metadata = 2;
 }
 
 
@@ -107,14 +110,23 @@ message GetVideosByKeywordRequest {
   string floor = 9;        // フロア（例：videoa、省略可）
 }
 
+// 検索結果のメタデータ
+message SearchMetadata {
+  int32 result_count = 1;    // 取得件数
+  int32 total_count = 2;     // 全体件数
+  int32 first_position = 3;  // 検索開始位置
+}
+
 // 検索結果レスポンス
 message GetVideosByIDResponse {
   repeated Video videos = 1;
+  SearchMetadata metadata = 2;
 }
 
 // 検索結果レスポンス
 message GetVideosByKeywordResponse {
   repeated Video videos = 1;
+  SearchMetadata metadata = 2;
 }
 
 // 後方互換性のための検索用メッセージ（DMM API v3 パラメータに基づく）
@@ -139,6 +151,7 @@ message SearchVideosRequest {
 
 message SearchVideosResponse {
   repeated Video videos = 1;
+  SearchMetadata metadata = 2;
 }
 
 service VideoService {

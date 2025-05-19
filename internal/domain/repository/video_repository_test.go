@@ -14,9 +14,9 @@ type MockVideoRepository struct {
 	mock.Mock
 }
 
-func (m *MockVideoRepository) GetVideosByDate(ctx context.Context, targetDate time.Time) ([]entity.Video, error) {
-	args := m.Called(ctx, targetDate)
-	return args.Get(0).([]entity.Video), args.Error(1)
+func (m *MockVideoRepository) GetVideosByDate(ctx context.Context, targetDate time.Time, hits int32, offset int32) ([]entity.Video, *entity.SearchMetadata, error) {
+	args := m.Called(ctx, targetDate, hits, offset)
+	return args.Get(0).([]entity.Video), args.Get(1).(*entity.SearchMetadata), args.Error(2)
 }
 
 func (m *MockVideoRepository) GetVideoById(ctx context.Context, dmmId string) (*entity.Video, error) {
@@ -27,19 +27,19 @@ func (m *MockVideoRepository) GetVideoById(ctx context.Context, dmmId string) (*
 	return args.Get(0).(*entity.Video), args.Error(1)
 }
 
-func (m *MockVideoRepository) SearchVideos(ctx context.Context, keyword, actressID, genreID, makerID, seriesID, directorID string) ([]entity.Video, error) {
+func (m *MockVideoRepository) SearchVideos(ctx context.Context, keyword, actressID, genreID, makerID, seriesID, directorID string) ([]entity.Video, *entity.SearchMetadata, error) {
 	args := m.Called(ctx, keyword, actressID, genreID, makerID, seriesID, directorID)
-	return args.Get(0).([]entity.Video), args.Error(1)
+	return args.Get(0).([]entity.Video), args.Get(1).(*entity.SearchMetadata), args.Error(2)
 }
 
-func (m *MockVideoRepository) GetVideosByID(ctx context.Context, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs []string, hits int32, offset int32, sort string, gteDate string, lteDate string, site string, service string, floor string) ([]entity.Video, error) {
+func (m *MockVideoRepository) GetVideosByID(ctx context.Context, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs []string, hits int32, offset int32, sort string, gteDate string, lteDate string, site string, service string, floor string) ([]entity.Video, *entity.SearchMetadata, error) {
 	args := m.Called(ctx, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs, hits, offset, sort, gteDate, lteDate, site, service, floor)
-	return args.Get(0).([]entity.Video), args.Error(1)
+	return args.Get(0).([]entity.Video), args.Get(1).(*entity.SearchMetadata), args.Error(2)
 }
 
-func (m *MockVideoRepository) GetVideosByKeyword(ctx context.Context, keyword string, hits int32, offset int32, sort string, gteDate string, lteDate string, site string, service string, floor string) ([]entity.Video, error) {
+func (m *MockVideoRepository) GetVideosByKeyword(ctx context.Context, keyword string, hits int32, offset int32, sort string, gteDate string, lteDate string, site string, service string, floor string) ([]entity.Video, *entity.SearchMetadata, error) {
 	args := m.Called(ctx, keyword, hits, offset, sort, gteDate, lteDate, site, service, floor)
-	return args.Get(0).([]entity.Video), args.Error(1)
+	return args.Get(0).([]entity.Video), args.Get(1).(*entity.SearchMetadata), args.Error(2)
 }
 
 func TestMockVideoRepository(t *testing.T) {
@@ -60,11 +60,18 @@ func TestMockVideoRepository(t *testing.T) {
 		Price:  1000,
 	}
 
+	expectedMD := entity.SearchMetadata{
+		ResultCount:   10,
+		TotalCount:    100,
+		FirstPosition: 1,
+	}
+
 	targetDate := time.Now()
-	mockRepo.On("GetVideosByDate", ctx, targetDate).Return(expectedVideos, nil)
-	videos, err := mockRepo.GetVideosByDate(ctx, targetDate)
+	mockRepo.On("GetVideosByDate", ctx, targetDate, int32(10), int32(0)).Return(expectedVideos, &expectedMD, nil)
+	videos, metadata, err := mockRepo.GetVideosByDate(ctx, targetDate, int32(10), int32(0))
 	assert.NoError(t, err)
 	assert.Equal(t, expectedVideos, videos)
+	assert.Equal(t, &expectedMD, metadata)
 	mockRepo.AssertExpectations(t)
 
 	mockRepo.On("GetVideoById", ctx, "test123").Return(&expectedVideo, nil)
@@ -73,29 +80,32 @@ func TestMockVideoRepository(t *testing.T) {
 	assert.Equal(t, &expectedVideo, video)
 	mockRepo.AssertExpectations(t)
 
-	mockRepo.On("SearchVideos", ctx, "keyword", "1", "2", "3", "4", "5").Return(expectedVideos, nil)
-	videos, err = mockRepo.SearchVideos(ctx, "keyword", "1", "2", "3", "4", "5")
+	mockRepo.On("SearchVideos", ctx, "keyword", "1", "2", "3", "4", "5").Return(expectedVideos, &expectedMD, nil)
+	videos, metadata, err = mockRepo.SearchVideos(ctx, "keyword", "1", "2", "3", "4", "5")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedVideos, videos)
+	assert.Equal(t, &expectedMD, metadata)
 	mockRepo.AssertExpectations(t)
 
 	mockRepo.On("GetVideosByID", ctx, 
 		[]string{"1"}, []string{"2"}, []string{"3"}, []string{"4"}, []string{"5"}, 
 		int32(10), int32(0), "rank", "2023-01-01", "2023-12-31", "FANZA", "digital", "videoa").
-		Return(expectedVideos, nil)
-	videos, err = mockRepo.GetVideosByID(ctx, 
+		Return(expectedVideos, &expectedMD, nil)
+	videos, metadata, err = mockRepo.GetVideosByID(ctx, 
 		[]string{"1"}, []string{"2"}, []string{"3"}, []string{"4"}, []string{"5"}, 
 		int32(10), int32(0), "rank", "2023-01-01", "2023-12-31", "FANZA", "digital", "videoa")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedVideos, videos)
+	assert.Equal(t, &expectedMD, metadata)
 	mockRepo.AssertExpectations(t)
 
 	mockRepo.On("GetVideosByKeyword", ctx, "keyword", int32(10), int32(0), "rank", 
 		"2023-01-01", "2023-12-31", "FANZA", "digital", "videoa").
-		Return(expectedVideos, nil)
-	videos, err = mockRepo.GetVideosByKeyword(ctx, "keyword", int32(10), int32(0), "rank", 
+		Return(expectedVideos, &expectedMD, nil)
+	videos, metadata, err = mockRepo.GetVideosByKeyword(ctx, "keyword", int32(10), int32(0), "rank", 
 		"2023-01-01", "2023-12-31", "FANZA", "digital", "videoa")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedVideos, videos)
+	assert.Equal(t, &expectedMD, metadata)
 	mockRepo.AssertExpectations(t)
 }
