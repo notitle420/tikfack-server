@@ -48,15 +48,14 @@ func NewRepositoryWithDeps(client ClientInterface, mapper MapperInterface) repos
 func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time) ([]entity.Video, error) {
     path := fmt.Sprintf(
         "/v3/ItemList?site=FANZA&service=digital&floor=videoa&sort=date&gte_date=%s&lte_date=%s",
-        targetDate.Format("2006-01-02T00:00:00"),
-        targetDate.AddDate(0, 0, 1).Format("2006-01-02T00:00:00"),
+        targetDate.Format("2006-01-02T15:04:05"),
+        time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 23, 59, 0, 0, targetDate.Location()).Format("2006-01-02T15:04:05"),
     )
-    //log.Println(path)
+    log.Println(path)
     var resp Response
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
     }
-    log.Println(resp)
     videos := make([]entity.Video, 0, len(resp.Result.Items))
     for _, item := range resp.Result.Items {
         videos = append(videos,r.mapper.ConvertItem(item))
@@ -75,7 +74,6 @@ func (r *Repository) GetVideoById(ctx context.Context, dmmID string) (*entity.Vi
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
     }
-    log.Println(resp)
     if len(resp.Result.Items) == 0 {
         return nil, fmt.Errorf("動画ID %s が見つかりませんでした", dmmID)
     }
