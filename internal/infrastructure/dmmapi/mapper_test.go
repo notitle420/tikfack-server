@@ -5,143 +5,331 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/tikfack/server/internal/domain/entity"
 )
-
-func TestConvertItem(t *testing.T) {
-	// テストケース1: レビュー情報あり
-	t.Run("レビュー情報がある場合", func(t *testing.T) {
-		item := Item{
-			ContentID: "vid1",
-			Title:     "テスト動画",
-			Date:      "2024-01-01 00:00:00",
-			URL:       "https://example.com/video1",
-			ImageURL: struct {
-				Large string `json:"large"`
-			}{
-				Large: "https://example.com/image1.jpg",
-			},
-			SampleMovieURL: &struct {
-				Size720480 string `json:"size_720_480"`
-			}{
-				Size720480: "https://example.com/sample1.mp4",
-			},
-			Prices: struct {
-				Price      string `json:"price,omitempty"`
-				Deliveries *struct {
-					Delivery []struct {
-						Type      string `json:"type"`
-						Price     string `json:"price"`
-						ListPrice string `json:"list_price"`
-					}
-				} `json:"deliveries,omitempty"`
-			}{
-				Price: "1000円",
-			},
-			Review: &struct {
-				Count   int    `json:"count"`
-				Average string `json:"average"`
-			}{
-				Count:   42,
-				Average: "4.5",
-			},
-			ItemInfo: struct {
-				Actress  []Actress  `json:"actress,omitempty"`
-				Genre    []Genre    `json:"genre,omitempty"`
-				Maker    []Maker    `json:"maker,omitempty"`
-				Series   []Series   `json:"series,omitempty"`
-				Director []Director `json:"director,omitempty"`
-			}{
-				Actress: []Actress{
-					{ID: 1, Name: "女優1"},
+func TestConvertEntityFromDMM(t *testing.T) {
+	createdAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	
+	tests := []struct {
+		name             string
+		input            Result
+		expectedVideos   []entity.Video
+		expectedMetadata *entity.SearchMetadata
+	}{
+		{
+			name: "正常系: 全てのフィールドが存在する場合",
+			input: Result{
+				Status:        200,
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+				Items: []Item{
+					{
+						ContentID: "test001",
+						Title:     "テスト動画",
+						Date:      "2024-01-01 00:00:00",
+						URL:       "https://example.com/video",
+						ImageURL: struct {
+							Large string `json:"large"`
+						}{
+							Large: "https://example.com/image.jpg",
+						},
+						SampleMovieURL: &struct {
+							Size720480 string `json:"size_720_480"`
+						}{
+							Size720480: "https://example.com/sample.mp4",
+						},
+						Prices: struct {
+							Price      string `json:"price,omitempty"`
+							Deliveries *struct {
+								Delivery []struct {
+									Type      string `json:"type"`
+									Price     string `json:"price"`
+									ListPrice string `json:"list_price"`
+								}
+							} `json:"deliveries,omitempty"`
+						}{
+							Price: "1980円",
+						},
+						Review: &struct {
+							Count   int    `json:"count"`
+							Average string `json:"average"`
+						}{
+							Count:   10,
+							Average: "4.5",
+						},
+						ItemInfo: struct {
+							Actress  []Actress  `json:"actress,omitempty"`
+							Genre    []Genre    `json:"genre,omitempty"`
+							Maker    []Maker    `json:"maker,omitempty"`
+							Series   []Series   `json:"series,omitempty"`
+							Director []Director `json:"director,omitempty"`
+						}{
+							Actress: []Actress{
+								{ID: 1, Name: "テスト女優1"},
+								{ID: 2, Name: "テスト女優2"},
+							},
+							Genre: []Genre{
+								{ID: 1, Name: "テストジャンル1"},
+								{ID: 2, Name: "テストジャンル2"},
+							},
+							Maker: []Maker{
+								{ID: 1, Name: "テストメーカー1"},
+							},
+							Series: []Series{
+								{ID: 1, Name: "テストシリーズ1"},
+							},
+							Director: []Director{
+								{ID: 1, Name: "テスト監督1"},
+							},
+						},
+					},
 				},
-				Genre: []Genre{
-					{ID: 100, Name: "ジャンル1"},
-				},
-				Maker: []Maker{
-					{ID: 200, Name: "メーカー1"},
-				},
-				Series: []Series{
-					{ID: 300, Name: "シリーズ1"},
-				},
-				Director: []Director{
-					{ID: 400, Name: "監督1"},
+			},
+			expectedVideos: []entity.Video{
+				{
+					DmmID:        "test001",
+					Title:        "テスト動画",
+					DirectURL:    "https://example.com/sample.mp4",
+					URL:          "https://example.com/video",
+					SampleURL:    "https://example.com/sample.mp4",
+					ThumbnailURL: "https://example.com/image.jpg",
+					CreatedAt:    createdAt,
+					Price:        1980,
+					LikesCount:   0,
+					Actresses: []entity.Actress{
+						{ID: "1", Name: "テスト女優1"},
+						{ID: "2", Name: "テスト女優2"},
+					},
+					Genres: []entity.Genre{
+						{ID: "1", Name: "テストジャンル1"},
+						{ID: "2", Name: "テストジャンル2"},
+					},
+					Makers: []entity.Maker{
+						{ID: "1", Name: "テストメーカー1"},
+					},
+					Series: []entity.Series{
+						{ID: "1", Name: "テストシリーズ1"},
+					},
+					Directors: []entity.Director{
+						{ID: "1", Name: "テスト監督1"},
+					},
+					Review: entity.Review{
+						Count:   10,
+						Average: 4.5,
+					},
 				},
 			},
-		}
-
-		video := ConvertItem(item)
-
-		// 基本情報の検証
-		assert.Equal(t, "vid1", video.DmmID)
-		assert.Equal(t, "テスト動画", video.Title)
-		assert.Equal(t, "https://example.com/sample1.mp4", video.DirectURL)
-		assert.Equal(t, "https://example.com/video1", video.URL)
-		assert.Equal(t, "https://example.com/sample1.mp4", video.SampleURL)
-		assert.Equal(t, "https://example.com/image1.jpg", video.ThumbnailURL)
-		assert.Equal(t, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), video.CreatedAt)
-		assert.Equal(t, 1000, video.Price)
-
-		// レビュー情報の検証
-		assert.Equal(t, 42, video.Review.Count)
-		assert.Equal(t, float32(4.5), video.Review.Average)
-
-		// 関連情報の検証
-		assert.Len(t, video.Actresses, 1)
-		assert.Equal(t, "1", video.Actresses[0].ID)
-		assert.Equal(t, "女優1", video.Actresses[0].Name)
-
-		assert.Len(t, video.Genres, 1)
-		assert.Equal(t, "100", video.Genres[0].ID)
-		assert.Equal(t, "ジャンル1", video.Genres[0].Name)
-
-		assert.Len(t, video.Makers, 1)
-		assert.Equal(t, "200", video.Makers[0].ID)
-		assert.Equal(t, "メーカー1", video.Makers[0].Name)
-
-		assert.Len(t, video.Series, 1)
-		assert.Equal(t, "300", video.Series[0].ID)
-		assert.Equal(t, "シリーズ1", video.Series[0].Name)
-
-		assert.Len(t, video.Directors, 1)
-		assert.Equal(t, "400", video.Directors[0].ID)
-		assert.Equal(t, "監督1", video.Directors[0].Name)
-	})
-
-	// テストケース2: レビュー情報なし
-	t.Run("レビュー情報がない場合", func(t *testing.T) {
-		item := Item{
-			ContentID: "vid2",
-			Title:     "テスト動画2",
-			Date:      "2024-01-01 00:00:00",
-			Review:    nil,
-		}
-
-		video := ConvertItem(item)
-
-		// レビュー情報の検証（デフォルト値）
-		assert.Equal(t, 0, video.Review.Count)
-		assert.Equal(t, float32(0), video.Review.Average)
-	})
-
-	// テストケース3: 数値変換エラー
-	t.Run("レビュー評価の数値変換エラー", func(t *testing.T) {
-		item := Item{
-			ContentID: "vid3",
-			Title:     "テスト動画3",
-			Date:      "2024-01-01 00:00:00",
-			Review: &struct {
-				Count   int    `json:"count"`
-				Average string `json:"average"`
-			}{
-				Count:   30,
-				Average: "invalid", // 不正な数値
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
 			},
-		}
+		},
+		{
+			name: "正常系: オプショナルフィールドが存在しない場合",
+			input: Result{
+				Status:        200,
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+				Items: []Item{
+					{
+						ContentID: "test002",
+						Title:     "テスト動画2",
+						Date:      "2024-01-01 00:00:00",
+						URL:       "https://example.com/video2",
+						ImageURL: struct {
+							Large string `json:"large"`
+						}{
+							Large: "https://example.com/image2.jpg",
+						},
+						Prices: struct {
+							Price      string `json:"price,omitempty"`
+							Deliveries *struct {
+								Delivery []struct {
+									Type      string `json:"type"`
+									Price     string `json:"price"`
+									ListPrice string `json:"list_price"`
+								}
+							} `json:"deliveries,omitempty"`
+						}{
+							Price: "2980円",
+						},
+						ItemInfo: struct {
+							Actress  []Actress  `json:"actress,omitempty"`
+							Genre    []Genre    `json:"genre,omitempty"`
+							Maker    []Maker    `json:"maker,omitempty"`
+							Series   []Series   `json:"series,omitempty"`
+							Director []Director `json:"director,omitempty"`
+						}{},
+					},
+				},
+			},
+			expectedVideos: []entity.Video{
+				{
+					DmmID:        "test002",
+					Title:        "テスト動画2",
+					URL:          "https://example.com/video2",
+					ThumbnailURL: "https://example.com/image2.jpg",
+					CreatedAt:    createdAt,
+					Price:        2980,
+					LikesCount:   0,
+					Actresses:    []entity.Actress{},
+					Genres:       []entity.Genre{},
+					Makers:       []entity.Maker{},
+					Series:       []entity.Series{},
+					Directors:    []entity.Director{},
+					Review: entity.Review{
+						Count:   0,
+						Average: 0,
+					},
+				},
+			},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
+		},
+		{
+			name: "正常系: 空の結果を返す場合",
+			input: Result{
+				Status:        200,
+				ResultCount:   0,
+				TotalCount:    0,
+				FirstPosition: 0,
+				Items:         []Item{},
+			},
+			expectedVideos: []entity.Video{},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   0,
+				TotalCount:    0,
+				FirstPosition: 0,
+			},
+		},
+	}
 
-		video := ConvertItem(item)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			videos, metadata := ConvertEntityFromDMM(tt.input)
+			
+			require.Equal(t, tt.expectedVideos, videos)
+			require.Equal(t, tt.expectedMetadata, metadata)
+			
+			// 日付の比較は別途行う（タイムゾーンの問題を避けるため）
+			if len(videos) > 0 {
+				for i, video := range videos {
+					assert.True(t, video.CreatedAt.Equal(tt.expectedVideos[i].CreatedAt))
+				}
+			}
+		})
+	}
+}
 
-		// レビュー情報の検証（Averageのデフォルト値）
-		assert.Equal(t, 30, video.Review.Count)
-		assert.Equal(t, float32(0), video.Review.Average) // 変換エラーなので0
-	})
+func TestParsePrice(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    Item
+		expected int
+	}{
+		{
+			name: "通常の価格",
+			input: Item{
+				Prices: struct {
+					Price      string `json:"price,omitempty"`
+					Deliveries *struct {
+						Delivery []struct {
+							Type      string `json:"type"`
+							Price     string `json:"price"`
+							ListPrice string `json:"list_price"`
+						}
+					} `json:"deliveries,omitempty"`
+				}{
+					Price: "1980円",
+				},
+			},
+			expected: 1980,
+		},
+		{
+			name: "価格範囲の場合",
+			input: Item{
+				Prices: struct {
+					Price      string `json:"price,omitempty"`
+					Deliveries *struct {
+						Delivery []struct {
+							Type      string `json:"type"`
+							Price     string `json:"price"`
+							ListPrice string `json:"list_price"`
+						}
+					} `json:"deliveries,omitempty"`
+				}{
+					Price: "1980円~2980円",
+				},
+			},
+			expected: 1980,
+		},
+		{
+			name: "価格が空の場合",
+			input: Item{
+				Prices: struct {
+					Price      string `json:"price,omitempty"`
+					Deliveries *struct {
+						Delivery []struct {
+							Type      string `json:"type"`
+							Price     string `json:"price"`
+							ListPrice string `json:"list_price"`
+						}
+					} `json:"deliveries,omitempty"`
+				}{
+					Price: "",
+				},
+			},
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parsePrice(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestParseDate(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected time.Time
+	}{
+		{
+			name:     "正常な日付",
+			input:    "2024-01-01 00:00:00",
+			expected: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "空の日付",
+			input:    "",
+			expected: time.Time{},
+		},
+		{
+			name:     "不正な日付",
+			input:    "invalid-date",
+			expected: time.Time{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseDate(tt.input)
+			if tt.input == "" || tt.input == "invalid-date" {
+				assert.True(t, result.IsZero())
+			} else {
+				assert.True(t, result.Equal(tt.expected))
+			}
+		})
+	}
 } 

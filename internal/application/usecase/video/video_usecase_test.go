@@ -12,6 +12,31 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+var (
+	testTime = time.Date(2024, 1, 2, 15, 4, 5, 0, time.UTC)
+	testVideo = entity.Video{
+		DmmID:        "test123",
+		Title:        "Test Video",
+		URL:          "https://example.com",
+		SampleURL:    "https://example.com/sample",
+		ThumbnailURL: "https://example.com/thumb.jpg",
+		CreatedAt:    testTime,
+		Price:        1000,
+		LikesCount:   500,
+		Actresses:    []entity.Actress{{ID: "a1", Name: "女優A"}},
+		Genres:       []entity.Genre{{ID: "g1", Name: "ジャンルA"}},
+		Makers:       []entity.Maker{{ID: "m1", Name: "メーカーA"}},
+		Series:       []entity.Series{{ID: "s1", Name: "シリーズA"}},
+		Directors:    []entity.Director{{ID: "d1", Name: "監督A"}},
+		Review:       entity.Review{Count: 100, Average: 4.5},
+	}
+	testMetadata = &entity.SearchMetadata{
+		ResultCount:   10,
+		TotalCount:    100,
+		FirstPosition: 1,
+	}
+)
+
 func TestNewVideoUsecase(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -27,67 +52,82 @@ func TestGetVideosByDate(t *testing.T) {
 	tests := []struct {
 		name        string
 		date        time.Time
+		hits        int32
+		offset      int32
 		setupMock   func(mockRepo *mockrepo.MockVideoRepository)
 		expected    []entity.Video
+		expectedMD  *entity.SearchMetadata
 		expectError bool
 	}{
 		{
-			name: "正常系",
-			date: time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+			name:   "正常系",
+			date:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+			hits:   10,
+			offset: 0,
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
-					GetVideosByDate(gomock.Any(), time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC)).
-					Return([]entity.Video{{
-						DmmID: "test123", 
-						Title: "Test Video",
-						Review: entity.Review{
-							Count:   10,
-							Average: 4.2,
-						},
-					}}, nil)
+					GetVideosByDate(gomock.Any(), time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC), int32(10), int32(0)).
+					Return([]entity.Video{testVideo}, testMetadata, nil)
 			},
-			expected: []entity.Video{{
-				DmmID: "test123", 
-				Title: "Test Video",
-				Review: entity.Review{
-					Count:   10,
-					Average: 4.2,
-				},
-			}},
+			expected:    []entity.Video{testVideo},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
-			name: "異常系",
-			date: time.Time{},
+			name:   "異常系",
+			date:   time.Time{},
+			hits:   0,
+			offset: 0,
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
-					GetVideosByDate(gomock.Any(), time.Time{}).
-					Return([]entity.Video{}, errors.New("repository error"))
-			},
-			expected:    []entity.Video{},
-			expectError: true,
-		},
-		{
-			name: "空配列を返す場合",
-			date: time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
-			setupMock: func(m *mockrepo.MockVideoRepository) {
-				m.EXPECT().
-					GetVideosByDate(gomock.Any(), time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)).
-					Return([]entity.Video{}, nil)
-			},
-			expected:    []entity.Video{},
-			expectError: false,
-		},
-		{
-			name: "タイムアウトエラーの場合",
-			date: time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC),
-			setupMock: func(m *mockrepo.MockVideoRepository) {
-				m.EXPECT().
-					GetVideosByDate(gomock.Any(), time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)).
-					Return(nil, context.DeadlineExceeded)
+					GetVideosByDate(gomock.Any(), time.Time{}, int32(0), int32(0)).
+					Return(nil, nil, errors.New("repository error"))
 			},
 			expected:    nil,
+			expectedMD:  nil,
 			expectError: true,
+		},
+		{
+			name:   "空配列を返す場合",
+			date:   time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+			hits:   20,
+			offset: 0,
+			setupMock: func(m *mockrepo.MockVideoRepository) {
+				m.EXPECT().
+					GetVideosByDate(gomock.Any(), time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC), int32(20), int32(0)).
+					Return([]entity.Video{}, testMetadata, nil)
+			},
+			expected:    []entity.Video{},
+			expectedMD:  testMetadata,
+			expectError: false,
+		},
+		{
+			name:   "タイムアウトエラーの場合",
+			date:   time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC),
+			hits:   10,
+			offset: 0,
+			setupMock: func(m *mockrepo.MockVideoRepository) {
+				m.EXPECT().
+					GetVideosByDate(gomock.Any(), time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC), int32(10), int32(0)).
+					Return(nil, nil, context.DeadlineExceeded)
+			},
+			expected:    nil,
+			expectedMD:  nil,
+			expectError: true,
+		},
+		{
+			name:   "ページネーションのテスト",
+			date:   time.Date(2025, 8, 1, 0, 0, 0, 0, time.UTC),
+			hits:   5,
+			offset: 10,
+			setupMock: func(m *mockrepo.MockVideoRepository) {
+				m.EXPECT().
+					GetVideosByDate(gomock.Any(), time.Date(2025, 8, 1, 0, 0, 0, 0, time.UTC), int32(5), int32(10)).
+					Return([]entity.Video{testVideo}, testMetadata, nil)
+			},
+			expected:    []entity.Video{testVideo},
+			expectedMD:  testMetadata,
+			expectError: false,
 		},
 	}
 	
@@ -101,7 +141,7 @@ func TestGetVideosByDate(t *testing.T) {
 			
 			tt.setupMock(mockRepo)
 			
-			videos, err := uc.GetVideosByDate(ctx, tt.date)
+			videos, metadata, err := uc.GetVideosByDate(ctx, tt.date, tt.hits, tt.offset)
 			
 			if tt.expectError {
 				require.Error(t, err)
@@ -113,6 +153,7 @@ func TestGetVideosByDate(t *testing.T) {
 			}
 			
 			require.Equal(t, tt.expected, videos)
+			require.Equal(t, tt.expectedMD, metadata)
 		})
 	}
 }
@@ -226,6 +267,7 @@ func TestSearchVideos(t *testing.T) {
 		directorID  string
 		setupMock   func(mockRepo *mockrepo.MockVideoRepository)
 		expected    []entity.Video
+		expectedMD  *entity.SearchMetadata
 		expectError bool
 	}{
 		{
@@ -239,23 +281,10 @@ func TestSearchVideos(t *testing.T) {
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
 					SearchVideos(gomock.Any(), "keyword", "1", "2", "3", "4", "5").
-					Return([]entity.Video{{
-						DmmID: "test123", 
-						Title: "Test Video",
-						Review: entity.Review{
-							Count:   20,
-							Average: 4.5,
-						},
-					}}, nil)
+					Return([]entity.Video{testVideo}, testMetadata, nil)
 			},
-			expected: []entity.Video{{
-				DmmID: "test123", 
-				Title: "Test Video",
-				Review: entity.Review{
-					Count:   20,
-					Average: 4.5,
-				},
-			}},
+			expected:    []entity.Video{testVideo},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
@@ -269,9 +298,10 @@ func TestSearchVideos(t *testing.T) {
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
 					SearchVideos(gomock.Any(), "", "", "", "", "", "").
-					Return([]entity.Video{}, errors.New("repository error"))
+					Return(nil, nil, errors.New("repository error"))
 			},
-			expected:    []entity.Video{},
+			expected:    nil,
+			expectedMD:  nil,
 			expectError: true,
 		},
 		{
@@ -285,9 +315,10 @@ func TestSearchVideos(t *testing.T) {
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
 					SearchVideos(gomock.Any(), "notexist", "", "", "", "", "").
-					Return([]entity.Video{}, nil)
+					Return([]entity.Video{}, testMetadata, nil)
 			},
 			expected:    []entity.Video{},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
@@ -301,9 +332,10 @@ func TestSearchVideos(t *testing.T) {
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
 					SearchVideos(gomock.Any(), "timeout", "", "", "", "", "").
-					Return(nil, context.DeadlineExceeded)
+					Return(nil, nil, context.DeadlineExceeded)
 			},
 			expected:    nil,
+			expectedMD:  nil,
 			expectError: true,
 		},
 	}
@@ -318,7 +350,7 @@ func TestSearchVideos(t *testing.T) {
 			
 			tt.setupMock(mockRepo)
 			
-			videos, err := uc.SearchVideos(ctx, tt.keyword, tt.actressID, tt.genreID, tt.makerID, tt.seriesID, tt.directorID)
+			videos, metadata, err := uc.SearchVideos(ctx, tt.keyword, tt.actressID, tt.genreID, tt.makerID, tt.seriesID, tt.directorID)
 			
 			if tt.expectError {
 				require.Error(t, err)
@@ -330,6 +362,7 @@ func TestSearchVideos(t *testing.T) {
 			}
 			
 			require.Equal(t, tt.expected, videos)
+			require.Equal(t, tt.expectedMD, metadata)
 		})
 	}
 }
@@ -360,6 +393,7 @@ func TestGetVideosByID(t *testing.T) {
 		floor        string
 		setupMock    func(mockRepo *mockrepo.MockVideoRepository)
 		expected     []entity.Video
+		expectedMD   *entity.SearchMetadata
 		expectError  bool
 	}{
 		{
@@ -382,23 +416,10 @@ func TestGetVideosByID(t *testing.T) {
 					GetVideosByID(gomock.Any(), 
 						[]string{"1"}, []string{"2"}, []string{"3"}, []string{"4"}, []string{"5"},
 						int32(10), int32(0), "rank", "2023-01-01", "2023-12-31", "FANZA", "digital", "videoa").
-					Return([]entity.Video{{
-						DmmID: "test123", 
-						Title: "Test Video",
-						Review: entity.Review{
-							Count:   25,
-							Average: 4.3,
-						},
-					}}, nil)
+					Return([]entity.Video{testVideo}, testMetadata, nil)
 			},
-			expected: []entity.Video{{
-				DmmID: "test123", 
-				Title: "Test Video",
-				Review: entity.Review{
-					Count:   25,
-					Average: 4.3,
-				},
-			}},
+			expected:    []entity.Video{testVideo},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
@@ -419,11 +440,12 @@ func TestGetVideosByID(t *testing.T) {
 			setupMock: func(m *mockrepo.MockVideoRepository) {
 				m.EXPECT().
 					GetVideosByID(gomock.Any(), 
-						[]string{}, []string{}, []string{}, []string{}, []string{},
+						gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
 						int32(0), int32(0), "", "", "", "", "", "").
-					Return([]entity.Video{}, errors.New("repository error"))
+					Return(nil, nil, errors.New("repository error"))
 			},
-			expected:    []entity.Video{},
+			expected:    nil,
+			expectedMD:  nil,
 			expectError: true,
 		},
 		{
@@ -446,9 +468,10 @@ func TestGetVideosByID(t *testing.T) {
 					GetVideosByID(gomock.Any(), 
 						[]string{"999"}, []string{}, []string{}, []string{}, []string{},
 						int32(10), int32(0), "rank", "", "", "", "", "").
-					Return([]entity.Video{}, nil)
+					Return([]entity.Video{}, testMetadata, nil)
 			},
 			expected:    []entity.Video{},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
@@ -471,9 +494,10 @@ func TestGetVideosByID(t *testing.T) {
 					GetVideosByID(gomock.Any(), 
 						[]string{"timeout"}, []string{}, []string{}, []string{}, []string{},
 						int32(10), int32(0), "rank", "", "", "", "", "").
-					Return(nil, context.DeadlineExceeded)
+					Return(nil, nil, context.DeadlineExceeded)
 			},
 			expected:    nil,
+			expectedMD:  nil,
 			expectError: true,
 		},
 		{
@@ -496,9 +520,10 @@ func TestGetVideosByID(t *testing.T) {
 					GetVideosByID(gomock.Any(), 
 						[]string{"nil_case"}, []string{}, []string{}, []string{}, []string{},
 						int32(10), int32(0), "rank", "", "", "", "", "").
-					Return(nil, nil)
+					Return(nil, nil, nil)
 			},
 			expected:    nil,
+			expectedMD:  nil,
 			expectError: false,
 		},
 		{
@@ -521,9 +546,10 @@ func TestGetVideosByID(t *testing.T) {
 					GetVideosByID(gomock.Any(), 
 						gomock.Any(), []string{}, []string{}, []string{}, []string{},
 						int32(100), int32(0), "rank", "", "", "", "", "").
-					Return([]entity.Video{{DmmID: "mass1", Title: "Mass Test"}}, nil)
+					Return([]entity.Video{{DmmID: "mass1", Title: "Mass Test"}}, testMetadata, nil)
 			},
 			expected:    []entity.Video{{DmmID: "mass1", Title: "Mass Test"}},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 	}
@@ -538,7 +564,7 @@ func TestGetVideosByID(t *testing.T) {
 			
 			tt.setupMock(mockRepo)
 			
-			videos, err := uc.GetVideosByID(ctx, 
+			videos, metadata, err := uc.GetVideosByID(ctx, 
 				tt.actressIDs, tt.genreIDs, tt.makerIDs, tt.seriesIDs, tt.directorIDs,
 				tt.hits, tt.offset, tt.sort, tt.gteDate, tt.lteDate, tt.site, tt.service, tt.floor)
 			
@@ -552,6 +578,7 @@ func TestGetVideosByID(t *testing.T) {
 			}
 			
 			require.Equal(t, tt.expected, videos)
+			require.Equal(t, tt.expectedMD, metadata)
 		})
 	}
 }
@@ -572,6 +599,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 		floor       string
 		setupMock   func(mockRepo *mockrepo.MockVideoRepository)
 		expected    []entity.Video
+		expectedMD  *entity.SearchMetadata
 		expectError bool
 	}{
 		{
@@ -590,23 +618,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 					GetVideosByKeyword(gomock.Any(), 
 						"keyword", int32(10), int32(0), "rank", 
 						"2023-01-01", "2023-12-31", "FANZA", "digital", "videoa").
-					Return([]entity.Video{{
-						DmmID: "test123", 
-						Title: "Test Video",
-						Review: entity.Review{
-							Count:   30,
-							Average: 3.9,
-						},
-					}}, nil)
+					Return([]entity.Video{testVideo}, testMetadata, nil)
 			},
-			expected: []entity.Video{{
-				DmmID: "test123", 
-				Title: "Test Video",
-				Review: entity.Review{
-					Count:   30,
-					Average: 3.9,
-				},
-			}},
+			expected:    []entity.Video{testVideo},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
@@ -624,9 +639,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 				m.EXPECT().
 					GetVideosByKeyword(gomock.Any(), "", int32(0), int32(0), "",
 						"", "", "", "", "").
-					Return([]entity.Video{}, errors.New("repository error"))
+					Return(nil, nil, errors.New("repository error"))
 			},
-			expected:    []entity.Video{},
+			expected:    nil,
+			expectedMD:  nil,
 			expectError: true,
 		},
 		{
@@ -644,9 +660,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 				m.EXPECT().
 					GetVideosByKeyword(gomock.Any(), "notexist", int32(10), int32(0), "rank",
 						"", "", "", "", "").
-					Return([]entity.Video{}, nil)
+					Return([]entity.Video{}, testMetadata, nil)
 			},
 			expected:    []entity.Video{},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
@@ -664,9 +681,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 				m.EXPECT().
 					GetVideosByKeyword(gomock.Any(), "timeout", int32(10), int32(0), "rank",
 						"", "", "", "", "").
-					Return(nil, context.DeadlineExceeded)
+					Return(nil, nil, context.DeadlineExceeded)
 			},
 			expected:    nil,
+			expectedMD:  nil,
 			expectError: true,
 		},
 		{
@@ -684,9 +702,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 				m.EXPECT().
 					GetVideosByKeyword(gomock.Any(), gomock.Any(), int32(10), int32(0), "rank",
 						"", "", "", "", "").
-					Return([]entity.Video{}, nil)
+					Return([]entity.Video{}, testMetadata, nil)
 			},
 			expected:    []entity.Video{},
+			expectedMD:  testMetadata,
 			expectError: false,
 		},
 		{
@@ -709,12 +728,13 @@ func TestGetVideosByKeyword(t *testing.T) {
 					Return([]entity.Video{
 						{DmmID: "invalid1", Title: "Invalid Video", Price: -100},
 						{DmmID: "invalid2", Title: "Invalid Date", CreatedAt: time.Time{}},
-					}, nil)
+					}, testMetadata, nil)
 			},
 			expected: []entity.Video{
 				{DmmID: "invalid1", Title: "Invalid Video", Price: -100},
 				{DmmID: "invalid2", Title: "Invalid Date", CreatedAt: time.Time{}},
 			},
+			expectedMD: testMetadata,
 			expectError: false,
 		},
 	}
@@ -729,7 +749,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 			
 			tt.setupMock(mockRepo)
 			
-			videos, err := uc.GetVideosByKeyword(ctx, tt.keyword, tt.hits, tt.offset, tt.sort,
+			videos, metadata, err := uc.GetVideosByKeyword(ctx, tt.keyword, tt.hits, tt.offset, tt.sort,
 				tt.gteDate, tt.lteDate, tt.site, tt.service, tt.floor)
 			
 			if tt.expectError {
@@ -742,6 +762,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 			}
 			
 			require.Equal(t, tt.expected, videos)
+			require.Equal(t, tt.expectedMD, metadata)
 		})
 	}
 }

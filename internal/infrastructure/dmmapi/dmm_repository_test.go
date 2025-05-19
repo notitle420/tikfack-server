@@ -37,20 +37,24 @@ func TestGetVideosByDate(t *testing.T) {
 			Average: 4.0,
 		},
 	}
-	expectedAPIError := errors.New("API error")
 	
 	tests := []struct {
-		name        string
-		date        time.Time
-		setupMock   func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
-		expected    []entity.Video
-		expectedErr error
+		name             string
+		date             time.Time
+		setupMock        func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
+		expected         []entity.Video
+		expectedMetadata *entity.SearchMetadata
+		expectedErr      error
 	}{
 		{
 			name: "APIから結果が返された場合は動画配列を返す",
 			date: fakeDate,
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				resp := &Response{}
+				resp.Result.Status = 200
+				resp.Result.ResultCount = 1
+				resp.Result.TotalCount = 1
+				resp.Result.FirstPosition = 1
 				resp.Result.Items = []Item{item}
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
@@ -59,10 +63,19 @@ func TestGetVideosByDate(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -71,17 +84,22 @@ func TestGetVideosByDate(t *testing.T) {
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
-					Return(expectedAPIError)
-				mockMapper.EXPECT().ConvertItem(gomock.Any()).Times(0)
+					Return(errors.New("API error"))
+				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
-			expected:    nil,
-			expectedErr: expectedAPIError,
+			expected:         nil,
+			expectedMetadata: nil,
+			expectedErr:      errors.New("API error"),
 		},
 		{
 			name: "APIがnil項目を返した場合は空配列を返す",
 			date: fakeDate,
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				resp := &Response{}
+				resp.Result.Status = 200
+				resp.Result.ResultCount = 0
+				resp.Result.TotalCount = 0
+				resp.Result.FirstPosition = 0
 				resp.Result.Items = nil
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
@@ -89,9 +107,20 @@ func TestGetVideosByDate(t *testing.T) {
 						*v.(*Response) = *resp
 						return nil
 					})
-				mockMapper.EXPECT().ConvertItem(gomock.Any()).Times(0)
+				mockMapper.EXPECT().
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{}, &entity.SearchMetadata{
+						ResultCount:   0,
+						TotalCount:    0,
+						FirstPosition: 0,
+					})
 			},
-			expected:    []entity.Video{},
+			expected:         []entity.Video{},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   0,
+				TotalCount:    0,
+				FirstPosition: 0,
+			},
 			expectedErr: nil,
 		},
 	}
@@ -107,14 +136,17 @@ func TestGetVideosByDate(t *testing.T) {
 			tt.setupMock(mockClient, mockMapper)
 			
 			repo := NewRepositoryWithDeps(mockClient, mockMapper)
-			videos, err := repo.GetVideosByDate(ctx, tt.date)
+			videos, metadata, err := repo.GetVideosByDate(ctx, tt.date, 10, 0)
 			
 			if tt.expectedErr != nil {
 				require.Error(t, err)
-				require.ErrorIs(t, err, tt.expectedErr)
+				require.ErrorIs(t, err, ErrAPIError)
+				assert.Nil(t, videos)
+				assert.Nil(t, metadata)
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expected, videos)
+				assert.Equal(t, tt.expectedMetadata, metadata)
 			}
 		})
 	}
@@ -135,7 +167,6 @@ func TestGetVideoById(t *testing.T) {
 			Average: "4.5",
 		},
 	}
-	// 実際のコードで変換される時刻を使用
 	createdAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	videoEntity := entity.Video{
 		DmmID:     "vid1", 
@@ -146,7 +177,6 @@ func TestGetVideoById(t *testing.T) {
 			Average: 4.5,
 		},
 	}
-	expectedAPIError := errors.New("API error")
 	videoNotFoundErr := errors.New("video not found")
 	
 	tests := []struct {
@@ -169,8 +199,8 @@ func TestGetVideoById(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, nil)
 			},
 			expected:    &videoEntity,
 			expectedErr: nil,
@@ -181,11 +211,11 @@ func TestGetVideoById(t *testing.T) {
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
-					Return(expectedAPIError)
-				mockMapper.EXPECT().ConvertItem(gomock.Any()).Times(0)
+					Return(errors.New("API error"))
+				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
 			expected:    nil,
-			expectedErr: expectedAPIError,
+			expectedErr: errors.New("API error"),
 		},
 		{
 			name:    "動画が存在しない場合は見つからないエラーを返す",
@@ -199,7 +229,9 @@ func TestGetVideoById(t *testing.T) {
 						*v.(*Response) = *resp
 						return nil
 					})
-				mockMapper.EXPECT().ConvertItem(gomock.Any()).Times(0)
+				mockMapper.EXPECT().
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{}, nil)
 			},
 			expected:    nil,
 			expectedErr: videoNotFoundErr,
@@ -221,8 +253,8 @@ func TestGetVideoById(t *testing.T) {
 			
 			if tt.expectedErr != nil {
 				require.Error(t, err)
-				if tt.expectedErr == expectedAPIError {
-					require.ErrorIs(t, err, expectedAPIError)
+				if tt.expectedErr == errors.New("API error") {
+					require.ErrorIs(t, err, errors.New("API error"))
 				} else {
 					require.ErrorContains(t, err, "見つかりませんでした")
 				}
@@ -257,19 +289,19 @@ func TestSearchVideos(t *testing.T) {
 			Average: 3.5,
 		},
 	}
-	expectedAPIError := errors.New("API error")
 	
 	tests := []struct {
-		name        string
-		keyword     string
-		actressID   string
-		genreID     string
-		makerID     string
-		seriesID    string
-		directorID  string
-		setupMock   func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
-		expected    []entity.Video
-		expectedErr error
+		name             string
+		keyword          string
+		actressID        string
+		genreID          string
+		makerID          string
+		seriesID         string
+		directorID       string
+		setupMock        func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
+		expected         []entity.Video
+		expectedMetadata *entity.SearchMetadata
+		expectedErr      error
 	}{
 		{
 			name:       "キーワードで検索した場合は動画を返す",
@@ -281,6 +313,10 @@ func TestSearchVideos(t *testing.T) {
 			directorID: "",
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				resp := &Response{}
+				resp.Result.Status = 200
+				resp.Result.ResultCount = 1
+				resp.Result.TotalCount = 1
+				resp.Result.FirstPosition = 1
 				resp.Result.Items = []Item{item}
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
@@ -289,10 +325,19 @@ func TestSearchVideos(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -313,10 +358,19 @@ func TestSearchVideos(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -337,10 +391,19 @@ func TestSearchVideos(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -361,10 +424,19 @@ func TestSearchVideos(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -385,10 +457,19 @@ func TestSearchVideos(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -409,10 +490,19 @@ func TestSearchVideos(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -426,11 +516,12 @@ func TestSearchVideos(t *testing.T) {
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
-					Return(expectedAPIError)
-				mockMapper.EXPECT().ConvertItem(gomock.Any()).Times(0)
+					Return(errors.New("API error"))
+				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
-			expected:    nil,
-			expectedErr: expectedAPIError,
+			expected:         nil,
+			expectedMetadata: nil,
+			expectedErr:      errors.New("API error"),
 		},
 		{
 			name:       "結果が見つからない場合は空配列を返す",
@@ -449,9 +540,14 @@ func TestSearchVideos(t *testing.T) {
 						*v.(*Response) = *resp
 						return nil
 					})
-				mockMapper.EXPECT().ConvertItem(gomock.Any()).Times(0)
+				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
-			expected:    []entity.Video{},
+			expected:         []entity.Video{},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   0,
+				TotalCount:    0,
+				FirstPosition: 0,
+			},
 			expectedErr: nil,
 		},
 	}
@@ -467,14 +563,17 @@ func TestSearchVideos(t *testing.T) {
 			tt.setupMock(mockClient, mockMapper)
 			
 			repo := NewRepositoryWithDeps(mockClient, mockMapper)
-			videos, err := repo.SearchVideos(ctx, tt.keyword, tt.actressID, tt.genreID, tt.makerID, tt.seriesID, tt.directorID)
+			videos, metadata, err := repo.SearchVideos(ctx, tt.keyword, tt.actressID, tt.genreID, tt.makerID, tt.seriesID, tt.directorID)
 			
 			if tt.expectedErr != nil {
-				require.Error(t, err)
-				require.ErrorIs(t, err, tt.expectedErr)
+				assert.Error(t, err)
+				assert.Equal(t, tt.expectedErr, err)
+				assert.Nil(t, videos)
+				assert.Nil(t, metadata)
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, videos)
+				assert.Equal(t, tt.expectedMetadata, metadata)
 			}
 		})
 	}
@@ -503,26 +602,26 @@ func TestGetVideosByID(t *testing.T) {
 			Average: 4.2,
 		},
 	}
-	expectedAPIError := errors.New("API error")
 	
 	tests := []struct {
-		name         string
-		actressIDs   []string
-		genreIDs     []string
-		makerIDs     []string
-		seriesIDs    []string
-		directorIDs  []string
-		hits         int32
-		offset       int32
-		sort         string
-		gteDate      string
-		lteDate      string
-		site         string
-		service      string
-		floor        string
-		setupMock    func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
-		expected     []entity.Video
-		expectedErr  error
+		name             string
+		actressIDs       []string
+		genreIDs         []string
+		makerIDs         []string
+		seriesIDs        []string
+		directorIDs      []string
+		hits             int32
+		offset           int32
+		sort             string
+		gteDate          string
+		lteDate          string
+		site             string
+		service          string
+		floor            string
+		setupMock        func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
+		expected         []entity.Video
+		expectedMetadata *entity.SearchMetadata
+		expectedErr      error
 	}{
 		{
 			name:        "女優IDで検索した場合は動画を返す",
@@ -549,10 +648,19 @@ func TestGetVideosByID(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -580,10 +688,19 @@ func TestGetVideosByID(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -611,10 +728,19 @@ func TestGetVideosByID(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -642,10 +768,19 @@ func TestGetVideosByID(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -673,10 +808,19 @@ func TestGetVideosByID(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -704,10 +848,19 @@ func TestGetVideosByID(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -735,10 +888,19 @@ func TestGetVideosByID(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -766,10 +928,19 @@ func TestGetVideosByID(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -790,11 +961,12 @@ func TestGetVideosByID(t *testing.T) {
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
-					Return(expectedAPIError)
-				mockMapper.EXPECT().ConvertItem(gomock.Any()).Times(0)
+					Return(errors.New("API error"))
+				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
-			expected:    nil,
-			expectedErr: expectedAPIError,
+			expected:         nil,
+			expectedMetadata: nil,
+			expectedErr:      errors.New("API error"),
 		},
 		{
 			name:        "結果が見つからない場合は空配列を返す",
@@ -820,9 +992,14 @@ func TestGetVideosByID(t *testing.T) {
 						*v.(*Response) = *resp
 						return nil
 					})
-				mockMapper.EXPECT().ConvertItem(gomock.Any()).Times(0)
+				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
-			expected:    []entity.Video{},
+			expected:         []entity.Video{},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   0,
+				TotalCount:    0,
+				FirstPosition: 0,
+			},
 			expectedErr: nil,
 		},
 	}
@@ -838,16 +1015,19 @@ func TestGetVideosByID(t *testing.T) {
 			tt.setupMock(mockClient, mockMapper)
 			
 			repo := NewRepositoryWithDeps(mockClient, mockMapper)
-			videos, err := repo.GetVideosByID(ctx, 
+			videos, metadata, err := repo.GetVideosByID(ctx, 
 				tt.actressIDs, tt.genreIDs, tt.makerIDs, tt.seriesIDs, tt.directorIDs,
 				tt.hits, tt.offset, tt.sort, tt.gteDate, tt.lteDate, tt.site, tt.service, tt.floor)
 			
 			if tt.expectedErr != nil {
-				require.Error(t, err)
-				require.ErrorIs(t, err, tt.expectedErr)
+				assert.Error(t, err)
+				assert.Equal(t, tt.expectedErr, err)
+				assert.Nil(t, videos)
+				assert.Nil(t, metadata)
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, videos)
+				assert.Equal(t, tt.expectedMetadata, metadata)
 			}
 		})
 	}
@@ -855,7 +1035,6 @@ func TestGetVideosByID(t *testing.T) {
 
 func TestGetVideosByKeyword(t *testing.T) {
 	ctx := context.Background()
-	
 	item := Item{
 		ContentID: "vid1",
 		Title:     "テスト動画",
@@ -876,22 +1055,22 @@ func TestGetVideosByKeyword(t *testing.T) {
 			Average: 3.8,
 		},
 	}
-	expectedAPIError := errors.New("API error")
 	
 	tests := []struct {
-		name        string
-		keyword     string
-		hits        int32
-		offset      int32
-		sort        string
-		gteDate     string
-		lteDate     string
-		site        string
-		service     string
-		floor       string
-		setupMock   func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
-		expected    []entity.Video
-		expectedErr error
+		name             string
+		keyword          string
+		hits             int32
+		offset           int32
+		sort             string
+		gteDate          string
+		lteDate          string
+		site             string
+		service          string
+		floor            string
+		setupMock        func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
+		expected         []entity.Video
+		expectedMetadata *entity.SearchMetadata
+		expectedErr      error
 	}{
 		{
 			name:    "キーワードで検索した場合は動画を返す",
@@ -906,6 +1085,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 			floor:   "videoa",
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				resp := &Response{}
+				resp.Result.Status = 200
+				resp.Result.ResultCount = 1
+				resp.Result.TotalCount = 1
+				resp.Result.FirstPosition = 1
 				resp.Result.Items = []Item{item}
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
@@ -914,10 +1097,19 @@ func TestGetVideosByKeyword(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -933,6 +1125,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 			floor:   "videoa",
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				resp := &Response{}
+				resp.Result.Status = 200
+				resp.Result.ResultCount = 1
+				resp.Result.TotalCount = 10
+				resp.Result.FirstPosition = 6
 				resp.Result.Items = []Item{item}
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
@@ -941,10 +1137,19 @@ func TestGetVideosByKeyword(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    10,
+						FirstPosition: 6,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    10,
+				FirstPosition: 6,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -960,6 +1165,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 			floor:   "videoa",
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				resp := &Response{}
+				resp.Result.Status = 200
+				resp.Result.ResultCount = 1
+				resp.Result.TotalCount = 1
+				resp.Result.FirstPosition = 1
 				resp.Result.Items = []Item{item}
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
@@ -968,10 +1177,19 @@ func TestGetVideosByKeyword(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -987,6 +1205,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 			floor:   "videoa",
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				resp := &Response{}
+				resp.Result.Status = 200
+				resp.Result.ResultCount = 1
+				resp.Result.TotalCount = 1
+				resp.Result.FirstPosition = 1
 				resp.Result.Items = []Item{item}
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
@@ -995,10 +1217,19 @@ func TestGetVideosByKeyword(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -1014,6 +1245,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 			floor:   "videoa",
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				resp := &Response{}
+				resp.Result.Status = 200
+				resp.Result.ResultCount = 1
+				resp.Result.TotalCount = 1
+				resp.Result.FirstPosition = 1
 				resp.Result.Items = []Item{item}
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
@@ -1022,10 +1257,19 @@ func TestGetVideosByKeyword(t *testing.T) {
 						return nil
 					})
 				mockMapper.EXPECT().
-					ConvertItem(gomock.Eq(item)).
-					Return(videoEntity)
+					ConvertEntityFromDMM(resp.Result).
+					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+						ResultCount:   1,
+						TotalCount:    1,
+						FirstPosition: 1,
+					})
 			},
-			expected:    []entity.Video{videoEntity},
+			expected:         []entity.Video{videoEntity},
+			expectedMetadata: &entity.SearchMetadata{
+				ResultCount:   1,
+				TotalCount:    1,
+				FirstPosition: 1,
+			},
 			expectedErr: nil,
 		},
 		{
@@ -1042,36 +1286,12 @@ func TestGetVideosByKeyword(t *testing.T) {
 			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
 				mockClient.EXPECT().
 					Call(gomock.Any(), gomock.Any()).
-					Return(expectedAPIError)
-				mockMapper.EXPECT().ConvertItem(gomock.Any()).Times(0)
+					Return(errors.New("API error"))
+				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
-			expected:    nil,
-			expectedErr: expectedAPIError,
-		},
-		{
-			name:    "結果が見つからない場合は空配列を返す",
-			keyword: "存在しない",
-			hits:    10,
-			offset:  0,
-			sort:    "rank",
-			gteDate: "",
-			lteDate: "",
-			site:    "FANZA",
-			service: "digital",
-			floor:   "videoa",
-			setupMock: func(mockClient *MockClientInterface, mockMapper *MockMapperInterface) {
-				resp := &Response{}
-				resp.Result.Items = []Item{}
-				mockClient.EXPECT().
-					Call(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(_ string, v interface{}) error {
-						*v.(*Response) = *resp
-						return nil
-					})
-				mockMapper.EXPECT().ConvertItem(gomock.Any()).Times(0)
-			},
-			expected:    []entity.Video{},
-			expectedErr: nil,
+			expected:         nil,
+			expectedMetadata: nil,
+			expectedErr:      errors.New("API error"),
 		},
 	}
 	
@@ -1079,22 +1299,23 @@ func TestGetVideosByKeyword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			
+
 			mockClient := NewMockClientInterface(ctrl)
 			mockMapper := NewMockMapperInterface(ctrl)
-			
-			tt.setupMock(mockClient, mockMapper)
-			
 			repo := NewRepositoryWithDeps(mockClient, mockMapper)
-			videos, err := repo.GetVideosByKeyword(ctx, tt.keyword, tt.hits, tt.offset, tt.sort,
-				tt.gteDate, tt.lteDate, tt.site, tt.service, tt.floor)
-			
+
+			tt.setupMock(mockClient, mockMapper)
+
+			videos, metadata, err := repo.GetVideosByKeyword(ctx, tt.keyword, tt.hits, tt.offset, tt.sort, tt.gteDate, tt.lteDate, tt.site, tt.service, tt.floor)
 			if tt.expectedErr != nil {
-				require.Error(t, err)
-				require.ErrorIs(t, err, tt.expectedErr)
+				assert.Error(t, err)
+				assert.Equal(t, tt.expectedErr, err)
+				assert.Nil(t, videos)
+				assert.Nil(t, metadata)
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, videos)
+				assert.Equal(t, tt.expectedMetadata, metadata)
 			}
 		})
 	}

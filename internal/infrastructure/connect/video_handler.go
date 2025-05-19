@@ -57,7 +57,10 @@ func (s *videoServiceServer) GetHandler() (string, http.Handler) {
 
 // GetVideosByDate は、動画一覧を取得するエンドポイントの実装例です。
 func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.Request[pb.GetVideosByDateRequest]) (*connect.Response[pb.GetVideosByDateResponse], error) {
-	s.logger.Debug("API: GetVideosByDate", "date", req.Msg.Date)
+	s.logger.Debug("API: GetVideosByDate", 
+		"date", req.Msg.Date,
+		"hits", req.Msg.Hits,
+		"offset", req.Msg.Offset)
 	
 	var targetDate time.Time
 	if req.Msg.Date == "" {
@@ -71,10 +74,31 @@ func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.R
 		targetDate = t
 	}
 	
+	// デフォルト値の設定
+	hits := req.Msg.Hits
+	if hits == 0 {
+		hits = 20 // デフォルト値
+	}
+	if hits > 100 {
+		hits = 100 // 最大値
+	}
+	
+	offset := req.Msg.Offset
+	if offset < 1 {
+		offset = 1 // 最小値
+	}
+	if offset > 50000 {
+		offset = 50000 // 最大値
+	}
+	
 	// ユースケースから動画リストを取得
-	videos, err := s.videoUsecase.GetVideosByDate(ctx, targetDate)
+	videos, metadata, err := s.videoUsecase.GetVideosByDate(ctx, targetDate, hits, offset)
 	if err != nil {
-		s.logger.Error("動画の取得に失敗", "date", targetDate.Format("2006-01-02"), "error", err)
+		s.logger.Error("動画の取得に失敗", 
+			"date", targetDate.Format("2006-01-02"),
+			"hits", hits,
+			"offset", offset,
+			"error", err)
 		return nil, status.Errorf(codes.Internal, "動画の取得に失敗しました: %v", err)
 	}
 	
@@ -87,8 +111,15 @@ func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.R
 	}
 	
 	pbVideos := convertVideosToPb(videos)
-	s.logger.Debug("GetVideosByDate completed", "count", len(pbVideos))
-	res := &pb.GetVideosByDateResponse{Videos: pbVideos}
+	pbMetadata := convertToPbMetadata(metadata)
+	s.logger.Debug("GetVideosByDate completed", 
+		"count", len(pbVideos),
+		"hits", hits,
+		"offset", offset)
+	res := &pb.GetVideosByDateResponse{
+		Videos:   pbVideos,
+		Metadata: pbMetadata,
+	}
 	return connect.NewResponse(res), nil
 }
 
@@ -127,8 +158,7 @@ func (s *videoServiceServer) SearchVideos(ctx context.Context, req *connect.Requ
 		"seriesId", req.Msg.SeriesId,
 		"directorId", req.Msg.DirectorId)
 	
-	// 実装が完了したら、こちらでもURL検証を行うように修正
-	videos, err := s.videoUsecase.SearchVideos(ctx, 
+	videos, metadata, err := s.videoUsecase.SearchVideos(ctx, 
 		req.Msg.Keyword, 
 		req.Msg.ActressId, 
 		req.Msg.GenreId, 
@@ -150,9 +180,11 @@ func (s *videoServiceServer) SearchVideos(ctx context.Context, req *connect.Requ
 	}
 	
 	pbVideos := convertVideosToPb(videos)
+	pbMetadata := convertToPbMetadata(metadata)
 	s.logger.Debug("SearchVideos completed", "count", len(pbVideos))
 	return connect.NewResponse(&pb.SearchVideosResponse{
-		Videos: pbVideos,
+		Videos:   pbVideos,
+		Metadata: pbMetadata,
 	}), nil
 }
 
@@ -166,21 +198,38 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 		"directorId_count", len(req.Msg.DirectorId),
 		"hits", req.Msg.Hits,
 		"offset", req.Msg.Offset)
+
+	hits := req.Msg.Hits
+	if hits == 0 {
+		hits = 20 // デフォルト値
+	}
+	if hits > 100 {
+		hits = 100 // 最大値
+	}
 	
-	videos, err := s.videoUsecase.GetVideosByID(ctx, 
+	offset := req.Msg.Offset
+	if offset < 1 {
+		offset = 1 // 最小値
+	}
+	if offset > 50000 {
+		offset = 50000 // 最大値
+	}
+	
+	videos, metadata, err := s.videoUsecase.GetVideosByID(ctx, 
 		req.Msg.ActressId, 
 		req.Msg.GenreId, 
 		req.Msg.MakerId, 
 		req.Msg.SeriesId, 
 		req.Msg.DirectorId,
-		req.Msg.Hits,
-		req.Msg.Offset,
+		hits,
+		offset,
 		req.Msg.Sort,
 		req.Msg.GteDate,
 		req.Msg.LteDate,
 		req.Msg.Site,
 		req.Msg.Service,
 		req.Msg.Floor)
+
 
 	if err != nil {
 		s.logger.Error("動画の検索に失敗", "error", err)
@@ -196,9 +245,11 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 	}
 	
 	pbVideos := convertVideosToPb(videos)
+	pbMetadata := convertToPbMetadata(metadata)
 	s.logger.Debug("GetVideosByID completed", "count", len(pbVideos))
 	return connect.NewResponse(&pb.GetVideosByIDResponse{
-		Videos: pbVideos,
+		Videos:   pbVideos,
+		Metadata: pbMetadata,
 	}), nil
 }
 
@@ -209,11 +260,27 @@ func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connec
 		"hits", req.Msg.Hits,
 		"offset", req.Msg.Offset,
 		"sort", req.Msg.Sort)
+
+	hits := req.Msg.Hits
+	if hits == 0 {
+		hits = 20 // デフォルト値
+	}
+	if hits > 100 {
+		hits = 100 // 最大値
+	}
 	
-	videos, err := s.videoUsecase.GetVideosByKeyword(ctx, 
+	offset := req.Msg.Offset
+	if offset < 1 {
+		offset = 1 // 最小値
+	}
+	if offset > 50000 {
+		offset = 50000 // 最大値
+	}
+	
+	videos, metadata, err := s.videoUsecase.GetVideosByKeyword(ctx, 
 		req.Msg.Keyword,
-		req.Msg.Hits,
-		req.Msg.Offset,
+		hits,
+		offset,
 		req.Msg.Sort,
 		req.Msg.GteDate,
 		req.Msg.LteDate,
@@ -235,9 +302,11 @@ func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connec
 	}
 	
 	pbVideos := convertVideosToPb(videos)
+	pbMetadata := convertToPbMetadata(metadata)
 	s.logger.Debug("GetVideosByKeyword completed", "count", len(pbVideos))
 	return connect.NewResponse(&pb.GetVideosByKeywordResponse{
-		Videos: pbVideos,
+		Videos:   pbVideos,
+		Metadata: pbMetadata,
 	}), nil
 }
 
@@ -252,29 +321,86 @@ func convertVideosToPb(videos []entity.Video) []*pb.Video {
 
 // convertToPbVideo は、ドメイン層の Video を pb.Video に変換するヘルパーです。
 func convertToPbVideo(v entity.Video) *pb.Video {
-	pbVideo := &pb.Video{
+	// 女優情報の変換
+	actresses := make([]*pb.Actress, 0, len(v.Actresses))
+	for _, a := range v.Actresses {
+		actresses = append(actresses, &pb.Actress{
+			Id:   a.ID,
+			Name: a.Name,
+		})
+	}
+
+	// ジャンル情報の変換
+	genres := make([]*pb.Genre, 0, len(v.Genres))
+	for _, g := range v.Genres {
+		genres = append(genres, &pb.Genre{
+			Id:   g.ID,
+			Name: g.Name,
+		})
+	}
+
+	// メーカー情報の変換
+	makers := make([]*pb.Maker, 0, len(v.Makers))
+	for _, m := range v.Makers {
+		makers = append(makers, &pb.Maker{
+			Id:   m.ID,
+			Name: m.Name,
+		})
+	}
+
+	// シリーズ情報の変換
+	series := make([]*pb.Series, 0, len(v.Series))
+	for _, s := range v.Series {
+		series = append(series, &pb.Series{
+			Id:   s.ID,
+			Name: s.Name,
+		})
+	}
+
+	// 監督情報の変換
+	directors := make([]*pb.Director, 0, len(v.Directors))
+	for _, d := range v.Directors {
+		directors = append(directors, &pb.Director{
+			Id:   d.ID,
+			Name: d.Name,
+		})
+	}
+
+	// レビュー情報の変換
+	review := &pb.Review{
+		Count:   int32(v.Review.Count),
+		Average: v.Review.Average,
+	}
+
+	return &pb.Video{
 		DmmId:        v.DmmID,
 		Title:        v.Title,
 		DirectUrl:    v.DirectURL,
 		Url:          v.URL,
 		SampleUrl:    v.SampleURL,
 		ThumbnailUrl: v.ThumbnailURL,
-		CreatedAt:    v.CreatedAt.Format("2006-01-02 15:04:05"),
-		LikesCount:   int32(v.LikesCount),
+		CreatedAt:    v.CreatedAt.Format(time.RFC3339),
 		Price:        int32(v.Price),
-		// Author情報はProtobufモデルに存在しないため削除
-		// 代わりに女優リストを使用
-		Actresses:    convertActressesToPb(v.Actresses),
-		Genres:       convertGenresToPb(v.Genres),
-		Makers:       convertMakersToPb(v.Makers),
-		Series:       convertSeriesToPb(v.Series),
-		Directors:    convertDirectorsToPb(v.Directors),
-		Review:       convertReviewToPb(v.Review),
+		LikesCount:   int32(v.LikesCount),
+		Actresses:    actresses,
+		Genres:       genres,
+		Makers:       makers,
+		Series:       series,
+		Directors:    directors,
+		Review:       review,
 	}
-	
-	// プロトコルバッファオブジェクトをJSON形式でログに出
-	
-	return pbVideo
+}
+
+// convertToPbMetadata は、ドメイン層の SearchMetadata を pb.SearchMetadata に変換するヘルパーです。
+func convertToPbMetadata(m *entity.SearchMetadata) *pb.SearchMetadata {
+	if m == nil {
+		return nil
+	}
+	return &pb.SearchMetadata{
+		ResultCount:   int32(m.ResultCount),
+		TotalCount:    int32(m.TotalCount),
+		FirstPosition: int32(m.FirstPosition),
+	}
 }
 
 // 各エンティティの変換関数
