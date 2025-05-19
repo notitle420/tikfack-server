@@ -2,6 +2,7 @@ package connect
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 // videoServiceServer は Connect のサーバー実装です。
 type videoServiceServer struct {
 	videoUsecase video.VideoUsecase
+	logger       *slog.Logger
 }
 
 // NewVideoServiceHandler はハンドラーの初期化を行います。
@@ -34,12 +36,14 @@ func NewVideoServiceHandler() *videoServiceServer {
 	vu := video.NewVideoUsecase(repo)
 	return &videoServiceServer{
 		videoUsecase: vu,
+		logger:       slog.Default().With(slog.String("component", "video_handler")),
 	}
 }
 
 func NewVideoServiceHandlerWithUsecase(vu video.VideoUsecase) *videoServiceServer {
 	return &videoServiceServer{
 		videoUsecase: vu,
+		logger:       slog.Default().With(slog.String("component", "video_handler")),
 	}
 }
 
@@ -53,12 +57,15 @@ func (s *videoServiceServer) GetHandler() (string, http.Handler) {
 
 // GetVideosByDate は、動画一覧を取得するエンドポイントの実装例です。
 func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.Request[pb.GetVideosByDateRequest]) (*connect.Response[pb.GetVideosByDateResponse], error) {
+	s.logger.Debug("API: GetVideosByDate", "date", req.Msg.Date)
+	
 	var targetDate time.Time
 	if req.Msg.Date == "" {
 		targetDate = time.Now()
 	} else {
 		t, err := time.Parse("2006-01-02", req.Msg.Date)
 		if err != nil {
+			s.logger.Error("不正な日付形式", "date", req.Msg.Date, "error", err)
 			return nil, status.Error(codes.InvalidArgument, "不正な日付形式です")
 		}
 		targetDate = t
@@ -67,6 +74,7 @@ func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.R
 	// ユースケースから動画リストを取得
 	videos, err := s.videoUsecase.GetVideosByDate(ctx, targetDate)
 	if err != nil {
+		s.logger.Error("動画の取得に失敗", "date", targetDate.Format("2006-01-02"), "error", err)
 		return nil, status.Errorf(codes.Internal, "動画の取得に失敗しました: %v", err)
 	}
 	
@@ -79,17 +87,22 @@ func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.R
 	}
 	
 	pbVideos := convertVideosToPb(videos)
+	s.logger.Debug("GetVideosByDate completed", "count", len(pbVideos))
 	res := &pb.GetVideosByDateResponse{Videos: pbVideos}
 	return connect.NewResponse(res), nil
 }
 
 // GetVideoById は、ID で動画を取得するエンドポイントの実装例です。
 func (s *videoServiceServer) GetVideoById(ctx context.Context, req *connect.Request[pb.GetVideoByIdRequest]) (*connect.Response[pb.GetVideoByIdResponse], error) {
+	s.logger.Debug("API: GetVideoById", "dmmId", req.Msg.DmmId)
+	
 	video, err := s.videoUsecase.GetVideoById(ctx, req.Msg.DmmId)
 	if err != nil {
+		s.logger.Error("動画の取得に失敗", "dmmId", req.Msg.DmmId, "error", err)
 		return nil, status.Errorf(codes.Internal, "動画の取得に失敗しました: %v", err)
 	}
 	if video == nil {
+		s.logger.Info("動画が見つかりません", "dmmId", req.Msg.DmmId)
 		return nil, status.Error(codes.NotFound, "video not found")
 	}
 	
@@ -99,12 +112,21 @@ func (s *videoServiceServer) GetVideoById(ctx context.Context, req *connect.Requ
 		video.DirectURL = directURL
 	}
 	
+	s.logger.Debug("GetVideoById completed", "dmmId", req.Msg.DmmId, "title", video.Title)
 	res := &pb.GetVideoByIdResponse{Video: convertToPbVideo(*video)}
 	return connect.NewResponse(res), nil
 }
 
 // SearchVideos は、動画を検索するエンドポイントの実装です。
 func (s *videoServiceServer) SearchVideos(ctx context.Context, req *connect.Request[pb.SearchVideosRequest]) (*connect.Response[pb.SearchVideosResponse], error) {
+	s.logger.Debug("API: SearchVideos", 
+		"keyword", req.Msg.Keyword, 
+		"actressId", req.Msg.ActressId, 
+		"genreId", req.Msg.GenreId, 
+		"makerId", req.Msg.MakerId,
+		"seriesId", req.Msg.SeriesId,
+		"directorId", req.Msg.DirectorId)
+	
 	// 実装が完了したら、こちらでもURL検証を行うように修正
 	videos, err := s.videoUsecase.SearchVideos(ctx, 
 		req.Msg.Keyword, 
@@ -115,6 +137,7 @@ func (s *videoServiceServer) SearchVideos(ctx context.Context, req *connect.Requ
 		req.Msg.DirectorId)
 	
 	if err != nil {
+		s.logger.Error("動画の検索に失敗", "keyword", req.Msg.Keyword, "error", err)
 		return nil, status.Errorf(codes.Internal, "動画の検索に失敗しました: %v", err)
 	}
 	
@@ -127,6 +150,7 @@ func (s *videoServiceServer) SearchVideos(ctx context.Context, req *connect.Requ
 	}
 	
 	pbVideos := convertVideosToPb(videos)
+	s.logger.Debug("SearchVideos completed", "count", len(pbVideos))
 	return connect.NewResponse(&pb.SearchVideosResponse{
 		Videos: pbVideos,
 	}), nil
@@ -134,6 +158,15 @@ func (s *videoServiceServer) SearchVideos(ctx context.Context, req *connect.Requ
 
 // GetVideosByID は、複数のIDで動画を検索するエンドポイントの実装です。
 func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Request[pb.GetVideosByIDRequest]) (*connect.Response[pb.GetVideosByIDResponse], error) {
+	s.logger.Debug("API: GetVideosByID", 
+		"actressId_count", len(req.Msg.ActressId),
+		"genreId_count", len(req.Msg.GenreId),
+		"makerId_count", len(req.Msg.MakerId),
+		"seriesId_count", len(req.Msg.SeriesId),
+		"directorId_count", len(req.Msg.DirectorId),
+		"hits", req.Msg.Hits,
+		"offset", req.Msg.Offset)
+	
 	videos, err := s.videoUsecase.GetVideosByID(ctx, 
 		req.Msg.ActressId, 
 		req.Msg.GenreId, 
@@ -150,6 +183,7 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 		req.Msg.Floor)
 
 	if err != nil {
+		s.logger.Error("動画の検索に失敗", "error", err)
 		return nil, status.Errorf(codes.Internal, "動画の検索に失敗しました: %v", err)
 	}
 	
@@ -162,6 +196,7 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 	}
 	
 	pbVideos := convertVideosToPb(videos)
+	s.logger.Debug("GetVideosByID completed", "count", len(pbVideos))
 	return connect.NewResponse(&pb.GetVideosByIDResponse{
 		Videos: pbVideos,
 	}), nil
@@ -169,6 +204,12 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 
 // GetVideosByKeyword は、キーワードで動画を検索するエンドポイントの実装です。
 func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connect.Request[pb.GetVideosByKeywordRequest]) (*connect.Response[pb.GetVideosByKeywordResponse], error) {
+	s.logger.Debug("API: GetVideosByKeyword", 
+		"keyword", req.Msg.Keyword,
+		"hits", req.Msg.Hits,
+		"offset", req.Msg.Offset,
+		"sort", req.Msg.Sort)
+	
 	videos, err := s.videoUsecase.GetVideosByKeyword(ctx, 
 		req.Msg.Keyword,
 		req.Msg.Hits,
@@ -181,6 +222,7 @@ func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connec
 		req.Msg.Floor)
 	
 	if err != nil {
+		s.logger.Error("動画の検索に失敗", "keyword", req.Msg.Keyword, "error", err)
 		return nil, status.Errorf(codes.Internal, "動画の検索に失敗しました: %v", err)
 	}
 	
@@ -193,6 +235,7 @@ func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connec
 	}
 	
 	pbVideos := convertVideosToPb(videos)
+	s.logger.Debug("GetVideosByKeyword completed", "count", len(pbVideos))
 	return connect.NewResponse(&pb.GetVideosByKeywordResponse{
 		Videos: pbVideos,
 	}), nil

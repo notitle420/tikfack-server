@@ -3,8 +3,6 @@ package dmmapi
 //go:generate mockgen -destination=mock_mapper.go -package=dmmapi github.com/tikfack/server/internal/infrastructure/dmmapi MapperInterface
 
 import (
-	// "encoding/json"
-	// "log"
 	"strconv"
 	"strings"
 	"time"
@@ -92,9 +90,6 @@ func ConvertItem(item Item) entity.Video {
         Review:       review,
     }
 
-    // 変換後のエンティティをJSON形式でログに出力
-    // videoJSON, _ := json.MarshalIndent(video, "", "  ")
-    // log.Printf("Converted entity:\n%s\n", string(videoJSON))
 
     return video
 }

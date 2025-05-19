@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -14,8 +14,13 @@ import (
 func main() {
 	// 環境変数の読み込み
 	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: .env ファイルの読み込みに失敗しました: %v", err)
+		// .envファイルがなくてもエラーではない（本番環境では環境変数で設定する場合がある）
+		slog.Info("環境変数を.envから読み込めませんでした", "error", err)
 	}
+
+	// ログレベルの設定
+	logLevel := os.Getenv("LOG_LEVEL")
+	setupLogger(logLevel)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -31,16 +36,45 @@ func main() {
 	loggedHandler := loggingMiddleware(mux)
 	handlerWithCORS := cors.AllowAll().Handler(loggedHandler)
 
-	log.Printf("🌐 Connect gRPC server is running on :%s", port)
+	slog.Info("サーバーを起動しています", "port", port)
 	if err := http.ListenAndServe(":"+port, handlerWithCORS); err != nil {
-		log.Fatalf("サーバー起動に失敗しました: %v", err)
+		slog.Error("サーバー起動に失敗しました", "error", err)
+		os.Exit(1)
 	}
 }
 
+// setupLogger configures the global slog logger based on the environment
+func setupLogger(level string) {
+	var logLevel slog.Level
+	switch level {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "info":
+		logLevel = slog.LevelInfo
+	case "warn":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
+	default:
+		logLevel = slog.LevelInfo // デフォルトはInfo
+	}
+
+	// JSONハンドラーを使用
+	opts := &slog.HandlerOptions{
+		Level: logLevel,
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	slog.SetDefault(logger)
+
+	logger.Info("ロガーを設定しました", "level", logLevel.String())
+}
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("📥 New request: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+		slog.Info("新しいリクエスト", 
+			"method", r.Method, 
+			"path", r.URL.Path, 
+			"remote_addr", r.RemoteAddr)
 		next.ServeHTTP(w, r)
 	})
 }
