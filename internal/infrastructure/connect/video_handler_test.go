@@ -17,10 +17,6 @@ import (
 	"github.com/tikfack/server/internal/domain/entity"
 )
 
-// ===== 共通Matcherヘルパー =====
-func eqInt32(want int32) gomock.Matcher   { return gomock.Eq(want) }
-func eqString(want string) gomock.Matcher { return gomock.Eq(want) }
-
 // ===== 共通テストデータ =====
 var (
 	testTime = time.Date(2024, 1, 2, 15, 4, 5, 0, time.UTC)
