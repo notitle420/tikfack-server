@@ -3,8 +3,6 @@ package dmmapi
 //go:generate mockgen -destination=mock_mapper.go -package=dmmapi github.com/tikfack/server/internal/infrastructure/dmmapi MapperInterface
 
 import (
-	"encoding/json"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -72,12 +70,7 @@ func ConvertItem(item Item) entity.Video {
             review.Average = float32(average)
         }
         
-        log.Printf("Found review info: Count=%d, Average=%s (parsed to %f)\n", 
-            item.Review.Count, item.Review.Average, review.Average)
     }
-
-    // レビュー情報をログに出力
-    log.Printf("Review info: Count=%d, Average=%f\n", review.Count, review.Average)
 
     video := entity.Video{
         DmmID:        item.ContentID,
@@ -97,9 +90,6 @@ func ConvertItem(item Item) entity.Video {
         Review:       review,
     }
 
-    // 変換後のエンティティをJSON形式でログに出力
-    videoJSON, _ := json.MarshalIndent(video, "", "  ")
-    log.Printf("Converted entity:\n%s\n", string(videoJSON))
 
     return video
 }

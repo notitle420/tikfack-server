@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 )
@@ -51,6 +50,5 @@ func (c *Client) Call(path string, v interface{}) error {
     if err != nil {
         return err
     }
-    log.Println(string(body))
     return json.Unmarshal(body, v)
 }

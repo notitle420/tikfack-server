@@ -3,7 +3,7 @@ package dmmapi
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -14,9 +14,8 @@ import (
 type Repository struct {
     client ClientInterface
     mapper MapperInterface
+    logger *slog.Logger
 }
-
-
 
 type defaultMapper struct{}
 func (m defaultMapper) ConvertItem(item Item) entity.Video {
@@ -32,6 +31,7 @@ func NewRepository() (repository.VideoRepository, error) {
     return &Repository{
         client: c,
         mapper: defaultMapper{},
+        logger: slog.Default().With(slog.String("component", "dmmapi")),
     }, nil
 }
 
@@ -40,27 +40,53 @@ func NewRepositoryWithDeps(client ClientInterface, mapper MapperInterface) repos
     return &Repository{
         client: client,
         mapper: mapper,
+        logger: slog.Default().With(slog.String("component", "dmmapi")),
     }
 }
 
+// NewRepositoryWithLogger creates a repository with a custom logger
+func NewRepositoryWithLogger(client ClientInterface, mapper MapperInterface, logger *slog.Logger) repository.VideoRepository {
+    return &Repository{
+        client: client,
+        mapper: mapper,
+        logger: logger.With(slog.String("component", "dmmapi")),
+    }
+}
+
+// SetLogger sets a custom logger for the repository
+func (r *Repository) SetLogger(logger *slog.Logger) {
+    r.logger = logger.With(slog.String("component", "dmmapi"))
+}
 
 // GetVideosByDate は指定日付の動画一覧を取得する
 func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time) ([]entity.Video, error) {
     path := fmt.Sprintf(
-        "/v3/ItemList?site=FANZA&service=digital&floor=videoa&sort=date&gte_date=%s&lte_date=%s",
-        targetDate.Format("2006-01-02T00:00:00"),
-        targetDate.AddDate(0, 0, 1).Format("2006-01-02T00:00:00"),
+        "/v3/ItemList?site=FANZA&service=digital&floor=videoa&sort=date&hits=100&gte_date=%s&lte_date=%s",
+        time.Date(2022, 4, 1, 0, 0, 0, 0, time.Local).Format("2006-01-02T15:04:05"),
+        //targetDate.Format("2006-01-02T15:04:05"),
+        time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 23, 59, 0, 0, targetDate.Location()).Format("2006-01-02T15:04:05"),
     )
-    //log.Println(path)
+    r.logger.Debug("calling API", "path", path)
     var resp Response
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
     }
-    log.Println(resp)
     videos := make([]entity.Video, 0, len(resp.Result.Items))
     for _, item := range resp.Result.Items {
         videos = append(videos,r.mapper.ConvertItem(item))
     }
+    
+    // 先頭5件のみを抽出
+    if len(videos) > 0 {
+        sampleSize := min(5, len(videos))
+        sample := videos[:sampleSize]
+        
+        // サンプルをログに出力
+        r.logger.Debug("video results sample", "count", sampleSize, "videos", sample)
+    } else {
+        r.logger.Debug("No videos found")
+    }
+    
     return videos, nil
 }
 
@@ -70,12 +96,11 @@ func (r *Repository) GetVideoById(ctx context.Context, dmmID string) (*entity.Vi
         "/v3/ItemList?site=FANZA&service=digital&floor=videoa&cid=%s",
         dmmID,
     )
-    //log.Println(path)
+    r.logger.Debug("calling API", "path", path)
     var resp Response
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
     }
-    log.Println(resp)
     if len(resp.Result.Items) == 0 {
         return nil, fmt.Errorf("動画ID %s が見つかりませんでした", dmmID)
     }
@@ -132,6 +157,7 @@ func (r *Repository) SearchVideos(
     }
     
     path := "/v3/ItemList?" + strings.Join(params, "&")
+    r.logger.Debug("calling API", "path", path)
     var resp Response
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
@@ -222,7 +248,7 @@ func (r *Repository) GetVideosByID(
     }
     
     path := "/v3/ItemList?" + strings.Join(params, "&")
-    //log.Println(path)
+    r.logger.Debug("calling API", "path", path)
     var resp Response
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
@@ -267,7 +293,7 @@ func (r *Repository) GetVideosByKeyword(
     }
     
     path := "/v3/ItemList?" + strings.Join(params, "&")
-    //log.Println(path)
+    r.logger.Debug("calling API", "path", path)
     var resp Response
     if err := r.client.Call(path, &resp); err != nil {
         return nil, err
