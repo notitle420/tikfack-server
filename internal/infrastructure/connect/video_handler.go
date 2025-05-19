@@ -57,11 +57,11 @@ func (s *videoServiceServer) GetHandler() (string, http.Handler) {
 
 // GetVideosByDate は、動画一覧を取得するエンドポイントの実装例です。
 func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.Request[pb.GetVideosByDateRequest]) (*connect.Response[pb.GetVideosByDateResponse], error) {
-	s.logger.Debug("API: GetVideosByDate", 
+	s.logger.Debug("API: GetVideosByDate",
 		"date", req.Msg.Date,
 		"hits", req.Msg.Hits,
 		"offset", req.Msg.Offset)
-	
+
 	var targetDate time.Time
 	if req.Msg.Date == "" {
 		targetDate = time.Now()
@@ -73,35 +73,32 @@ func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.R
 		}
 		targetDate = t
 	}
-	
+
 	// デフォルト値の設定
 	hits := req.Msg.Hits
-	if hits == 0 {
-		hits = 20 // デフォルト値
-	}
 	if hits > 100 {
 		hits = 100 // 最大値
 	}
-	
+
 	offset := req.Msg.Offset
-	if offset < 1 {
-		offset = 1 // 最小値
+	if offset < 0 {
+		offset = 0 // 最小値
 	}
 	if offset > 50000 {
 		offset = 50000 // 最大値
 	}
-	
+
 	// ユースケースから動画リストを取得
 	videos, metadata, err := s.videoUsecase.GetVideosByDate(ctx, targetDate, hits, offset)
 	if err != nil {
-		s.logger.Error("動画の取得に失敗", 
+		s.logger.Error("動画の取得に失敗",
 			"date", targetDate.Format("2006-01-02"),
 			"hits", hits,
 			"offset", offset,
 			"error", err)
 		return nil, status.Errorf(codes.Internal, "動画の取得に失敗しました: %v", err)
 	}
-	
+
 	// ハンドラー層で各動画のURL検証を行う
 	for i := range videos {
 		directURL, err := util.GetValidVideoUrl(videos[i].DmmID)
@@ -109,10 +106,10 @@ func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.R
 			videos[i].DirectURL = directURL
 		}
 	}
-	
+
 	pbVideos := convertVideosToPb(videos)
 	pbMetadata := convertToPbMetadata(metadata)
-	s.logger.Debug("GetVideosByDate completed", 
+	s.logger.Debug("GetVideosByDate completed",
 		"count", len(pbVideos),
 		"hits", hits,
 		"offset", offset)
@@ -126,7 +123,7 @@ func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.R
 // GetVideoById は、ID で動画を取得するエンドポイントの実装例です。
 func (s *videoServiceServer) GetVideoById(ctx context.Context, req *connect.Request[pb.GetVideoByIdRequest]) (*connect.Response[pb.GetVideoByIdResponse], error) {
 	s.logger.Debug("API: GetVideoById", "dmmId", req.Msg.DmmId)
-	
+
 	video, err := s.videoUsecase.GetVideoById(ctx, req.Msg.DmmId)
 	if err != nil {
 		s.logger.Error("動画の取得に失敗", "dmmId", req.Msg.DmmId, "error", err)
@@ -136,13 +133,13 @@ func (s *videoServiceServer) GetVideoById(ctx context.Context, req *connect.Requ
 		s.logger.Info("動画が見つかりません", "dmmId", req.Msg.DmmId)
 		return nil, status.Error(codes.NotFound, "video not found")
 	}
-	
+
 	// ハンドラー層でURL検証を行う
 	directURL, err := util.GetValidVideoUrl(video.DmmID)
 	if err == nil {
 		video.DirectURL = directURL
 	}
-	
+
 	s.logger.Debug("GetVideoById completed", "dmmId", req.Msg.DmmId, "title", video.Title)
 	res := &pb.GetVideoByIdResponse{Video: convertToPbVideo(*video)}
 	return connect.NewResponse(res), nil
@@ -150,27 +147,27 @@ func (s *videoServiceServer) GetVideoById(ctx context.Context, req *connect.Requ
 
 // SearchVideos は、動画を検索するエンドポイントの実装です。
 func (s *videoServiceServer) SearchVideos(ctx context.Context, req *connect.Request[pb.SearchVideosRequest]) (*connect.Response[pb.SearchVideosResponse], error) {
-	s.logger.Debug("API: SearchVideos", 
-		"keyword", req.Msg.Keyword, 
-		"actressId", req.Msg.ActressId, 
-		"genreId", req.Msg.GenreId, 
+	s.logger.Debug("API: SearchVideos",
+		"keyword", req.Msg.Keyword,
+		"actressId", req.Msg.ActressId,
+		"genreId", req.Msg.GenreId,
 		"makerId", req.Msg.MakerId,
 		"seriesId", req.Msg.SeriesId,
 		"directorId", req.Msg.DirectorId)
-	
-	videos, metadata, err := s.videoUsecase.SearchVideos(ctx, 
-		req.Msg.Keyword, 
-		req.Msg.ActressId, 
-		req.Msg.GenreId, 
-		req.Msg.MakerId, 
-		req.Msg.SeriesId, 
+
+	videos, metadata, err := s.videoUsecase.SearchVideos(ctx,
+		req.Msg.Keyword,
+		req.Msg.ActressId,
+		req.Msg.GenreId,
+		req.Msg.MakerId,
+		req.Msg.SeriesId,
 		req.Msg.DirectorId)
-	
+
 	if err != nil {
 		s.logger.Error("動画の検索に失敗", "keyword", req.Msg.Keyword, "error", err)
 		return nil, status.Errorf(codes.Internal, "動画の検索に失敗しました: %v", err)
 	}
-	
+
 	// ハンドラー層で各動画のURL検証を行う
 	for i := range videos {
 		directURL, err := util.GetValidVideoUrl(videos[i].DmmID)
@@ -178,7 +175,7 @@ func (s *videoServiceServer) SearchVideos(ctx context.Context, req *connect.Requ
 			videos[i].DirectURL = directURL
 		}
 	}
-	
+
 	pbVideos := convertVideosToPb(videos)
 	pbMetadata := convertToPbMetadata(metadata)
 	s.logger.Debug("SearchVideos completed", "count", len(pbVideos))
@@ -190,7 +187,7 @@ func (s *videoServiceServer) SearchVideos(ctx context.Context, req *connect.Requ
 
 // GetVideosByID は、複数のIDで動画を検索するエンドポイントの実装です。
 func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Request[pb.GetVideosByIDRequest]) (*connect.Response[pb.GetVideosByIDResponse], error) {
-	s.logger.Debug("API: GetVideosByID", 
+	s.logger.Debug("API: GetVideosByID",
 		"actressId_count", len(req.Msg.ActressId),
 		"genreId_count", len(req.Msg.GenreId),
 		"makerId_count", len(req.Msg.MakerId),
@@ -200,26 +197,23 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 		"offset", req.Msg.Offset)
 
 	hits := req.Msg.Hits
-	if hits == 0 {
-		hits = 20 // デフォルト値
-	}
 	if hits > 100 {
 		hits = 100 // 最大値
 	}
-	
+
 	offset := req.Msg.Offset
-	if offset < 1 {
-		offset = 1 // 最小値
+	if offset < 0 {
+		offset = 0 // 最小値
 	}
 	if offset > 50000 {
 		offset = 50000 // 最大値
 	}
-	
-	videos, metadata, err := s.videoUsecase.GetVideosByID(ctx, 
-		req.Msg.ActressId, 
-		req.Msg.GenreId, 
-		req.Msg.MakerId, 
-		req.Msg.SeriesId, 
+
+	videos, metadata, err := s.videoUsecase.GetVideosByID(ctx,
+		req.Msg.ActressId,
+		req.Msg.GenreId,
+		req.Msg.MakerId,
+		req.Msg.SeriesId,
 		req.Msg.DirectorId,
 		hits,
 		offset,
@@ -230,12 +224,11 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 		req.Msg.Service,
 		req.Msg.Floor)
 
-
 	if err != nil {
 		s.logger.Error("動画の検索に失敗", "error", err)
 		return nil, status.Errorf(codes.Internal, "動画の検索に失敗しました: %v", err)
 	}
-	
+
 	// ハンドラー層で各動画のURL検証を行う
 	for i := range videos {
 		directURL, err := util.GetValidVideoUrl(videos[i].DmmID)
@@ -243,7 +236,7 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 			videos[i].DirectURL = directURL
 		}
 	}
-	
+
 	pbVideos := convertVideosToPb(videos)
 	pbMetadata := convertToPbMetadata(metadata)
 	s.logger.Debug("GetVideosByID completed", "count", len(pbVideos))
@@ -255,29 +248,26 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 
 // GetVideosByKeyword は、キーワードで動画を検索するエンドポイントの実装です。
 func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connect.Request[pb.GetVideosByKeywordRequest]) (*connect.Response[pb.GetVideosByKeywordResponse], error) {
-	s.logger.Debug("API: GetVideosByKeyword", 
+	s.logger.Debug("API: GetVideosByKeyword",
 		"keyword", req.Msg.Keyword,
 		"hits", req.Msg.Hits,
 		"offset", req.Msg.Offset,
 		"sort", req.Msg.Sort)
 
 	hits := req.Msg.Hits
-	if hits == 0 {
-		hits = 20 // デフォルト値
-	}
 	if hits > 100 {
 		hits = 100 // 最大値
 	}
-	
+
 	offset := req.Msg.Offset
-	if offset < 1 {
-		offset = 1 // 最小値
+	if offset < 0 {
+		offset = 0 // 最小値
 	}
 	if offset > 50000 {
 		offset = 50000 // 最大値
 	}
-	
-	videos, metadata, err := s.videoUsecase.GetVideosByKeyword(ctx, 
+
+	videos, metadata, err := s.videoUsecase.GetVideosByKeyword(ctx,
 		req.Msg.Keyword,
 		hits,
 		offset,
@@ -287,12 +277,12 @@ func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connec
 		req.Msg.Site,
 		req.Msg.Service,
 		req.Msg.Floor)
-	
+
 	if err != nil {
 		s.logger.Error("動画の検索に失敗", "keyword", req.Msg.Keyword, "error", err)
 		return nil, status.Errorf(codes.Internal, "動画の検索に失敗しました: %v", err)
 	}
-	
+
 	// ハンドラー層で各動画のURL検証を行う
 	for i := range videos {
 		directURL, err := util.GetValidVideoUrl(videos[i].DmmID)
@@ -300,7 +290,7 @@ func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connec
 			videos[i].DirectURL = directURL
 		}
 	}
-	
+
 	pbVideos := convertVideosToPb(videos)
 	pbMetadata := convertToPbMetadata(metadata)
 	s.logger.Debug("GetVideosByKeyword completed", "count", len(pbVideos))
@@ -465,7 +455,7 @@ func convertReviewToPb(review entity.Review) *pb.Review {
 		Count:   int32(review.Count),
 		Average: review.Average,
 	}
-	
+
 	// レビュー情報をログに出力
 	return pbReview
 }
