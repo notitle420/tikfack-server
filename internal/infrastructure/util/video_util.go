@@ -25,11 +25,16 @@ func GetValidVideoUrl(dmmVideoId string) (string, error) {
 	alternativeUrl00 := generateUrl(reAlt00.ReplaceAllString(dmmVideoId, "$1$2$3"))
 
 	urls := []string{originalUrl, alternativeUrl0, alternativeUrl00}
-	for _, url := range urls {
-		resp, err := http.Head(url)
-		if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			return url, nil
-		}
-	}
+        for _, url := range urls {
+                resp, err := http.Head(url)
+                if err == nil {
+                        // HEAD レスポンスは Body を利用しないが、
+                        // コネクションリークを防ぐため確実に Close する
+                        resp.Body.Close()
+                        if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+                                return url, nil
+                        }
+                }
+        }
 	return "", fmt.Errorf("有効な動画URLが見つかりませんでした: %s", dmmVideoId)
 } 
