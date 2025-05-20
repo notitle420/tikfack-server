@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant Client
+    participant Handler as VideoServiceServer
+    participant Usecase as VideoUsecase
+    participant Repository as VideoRepository
+    participant DMMAPI
+
+    Client->>Handler: SearchVideosRequest(keyword, actress_id, genre_id, maker_id, series_id, director_id)
+    Handler->>Usecase: SearchVideos(ctx, keyword, actress_id, genre_id, maker_id, series_id, director_id)
+    Usecase->>Repository: SearchVideos(ctx, keyword, actress_id, genre_id, maker_id, series_id, director_id)
+    Repository->>DMMAPI: GET /v3/ItemList?keyword=...&...
+    DMMAPI-->>Repository: Response(JSON)
+    Repository-->>Usecase: []entity.Video, *entity.SearchMetadata
+    Usecase-->>Handler: []entity.Video, *entity.SearchMetadata
+    Handler-->>Client: SearchVideosResponse(videos, metadata)

@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant Client
+    participant Handler as VideoServiceServer
+    participant Usecase as VideoUsecase
+    participant Repository as VideoRepository
+    participant DMMAPI
+
+    Client->>Handler: GetVideoByIdRequest(dmm_id)
+    Handler->>Usecase: GetVideoById(ctx, dmm_id)
+    Usecase->>Repository: GetVideoById(ctx, dmm_id)
+    Repository->>DMMAPI: GET /v3/ItemList?cid=dmm_id
+    DMMAPI-->>Repository: Response(JSON)
+    Repository-->>Usecase: *entity.Video
+    Usecase-->>Handler: *entity.Video
+    Handler-->>Client: GetVideoByIdResponse(video)
