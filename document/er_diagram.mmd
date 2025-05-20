@@ -1,0 +1,43 @@
+erDiagram
+    VIDEO {
+        string DmmID PK
+        string Title
+        string DirectURL
+        string URL
+        string SampleURL
+        string ThumbnailURL
+        time CreatedAt
+        int Price
+        int LikesCount
+    }
+    ACTRESS {
+        string ID PK
+        string Name
+    }
+    GENRE {
+        string ID PK
+        string Name
+    }
+    MAKER {
+        string ID PK
+        string Name
+    }
+    SERIES {
+        string ID PK
+        string Name
+    }
+    DIRECTOR {
+        string ID PK
+        string Name
+    }
+    REVIEW {
+        int Count
+        float Average
+    }
+    VIDEO ||--o{ ACTRESS : includes
+    VIDEO ||--o{ GENRE : categorized_by
+    VIDEO }o--o{ MAKER : produced_by
+    VIDEO }o--o{ SERIES : part_of
+    VIDEO }o--o{ DIRECTOR : directed_by
+    VIDEO ||--|| REVIEW : has
+

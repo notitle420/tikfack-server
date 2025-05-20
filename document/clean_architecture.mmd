@@ -1,0 +1,21 @@
+%% Clean Architecture Diagram
+graph TD
+    subgraph Domain
+        entity["Entities"]
+        repoIF["Repository Interface"]
+    end
+    subgraph Application
+        usecase["Usecase"]
+    end
+    subgraph Infrastructure
+        connectH["Connect Handler"]
+        repoImpl["DMM API Repository"]
+        util["Utility"]
+    end
+    connectH --> usecase
+    usecase --> repoIF
+    repoImpl --> repoIF
+    util --> connectH
+    DMMAPI(("DMM API"))
+    repoImpl --> DMMAPI
+
