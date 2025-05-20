@@ -1,0 +1,35 @@
+%% Sequence diagrams for video requests
+
+%% GetVideosByDate Request
+sequenceDiagram
+    participant Client
+    participant Handler as VideoServiceServer
+    participant Usecase as VideoUsecase
+    participant Repository as VideoRepository
+    participant DMMAPI
+
+    Client->>Handler: GetVideosByDateRequest(date, hits, offset)
+    Handler->>Usecase: GetVideosByDate(ctx, targetDate, hits, offset)
+    Usecase->>Repository: GetVideosByDate(ctx, targetDate, hits, offset)
+    Repository->>DMMAPI: GET /v3/ItemList?gte_date=...&lte_date=...
+    DMMAPI-->>Repository: Response(JSON)
+    Repository-->>Usecase: []entity.Video, *entity.SearchMetadata
+    Usecase-->>Handler: []entity.Video, *entity.SearchMetadata
+    Handler-->>Client: GetVideosByDateResponse(videos, metadata)
+
+%% Other Requests (e.g., GetVideoById)
+sequenceDiagram
+    participant Client
+    participant Handler as VideoServiceServer
+    participant Usecase as VideoUsecase
+    participant Repository as VideoRepository
+    participant DMMAPI
+
+    Client->>Handler: GetVideoByIdRequest(dmm_id)
+    Handler->>Usecase: GetVideoById(ctx, dmm_id)
+    Usecase->>Repository: GetVideoById(ctx, dmm_id)
+    Repository->>DMMAPI: GET /v3/ItemList?cid=dmm_id
+    DMMAPI-->>Repository: Response(JSON)
+    Repository-->>Usecase: *entity.Video
+    Usecase-->>Handler: *entity.Video
+    Handler-->>Client: GetVideoByIdResponse(video)
