@@ -1,0 +1,16 @@
+@startuml
+actor Client
+participant "Video Handler" as Handler
+participant "Video Usecase" as Usecase
+participant "Video Repository" as Repo
+participant "DMM API" as DMM
+
+Client -> Handler : SearchVideos(params)
+Handler -> Usecase : SearchVideos(ctx, params)
+Usecase -> Repo : SearchVideos(ctx, params)
+Repo -> DMM : request item list
+DMM --> Repo : items + metadata
+Repo --> Usecase : videos, metadata
+Usecase --> Handler : videos, metadata
+Handler --> Client : SearchVideosResponse
+@enduml

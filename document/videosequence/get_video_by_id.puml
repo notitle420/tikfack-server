@@ -1,0 +1,16 @@
+@startuml
+actor Client
+participant "Video Handler" as Handler
+participant "Video Usecase" as Usecase
+participant "Video Repository" as Repo
+participant "DMM API" as DMM
+
+Client -> Handler : GetVideoById(dmm_id)
+Handler -> Usecase : GetVideoById(ctx, dmm_id)
+Usecase -> Repo : GetVideoById(ctx, dmm_id)
+Repo -> DMM : request video info
+DMM --> Repo : item data
+Repo --> Usecase : Video
+Usecase --> Handler : Video
+Handler --> Client : GetVideoByIdResponse
+@enduml
