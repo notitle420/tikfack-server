@@ -1,0 +1,33 @@
+name: 機能提案
+description: このプロジェクトに追加したい新しい機能を提案してください
+labels: feature
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: 機能の概要
+      placeholder: "例: 動画の連続再生機能を追加する"
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: なぜこの機能が必要か
+      description: 解決したい課題や背景
+      placeholder: "例: 毎回操作するのが面倒だから"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 実装イメージ / 解決案
+      description: どんなUIやAPI、動作になるか
+      placeholder: "例: 再生終了後に自動で次の動画をロードする"
+
+  - type: textarea
+    id: others
+    attributes:
+      label: 補足情報（任意）
+      placeholder: "関連Issueやスクリーンショットなど"
