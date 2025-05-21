@@ -1,0 +1,81 @@
+name: バグ報告
+description: 不具合があった場合報告してください
+labels: bug
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: どのような問題が発生しましたか？
+      description: |
+        できる限り詳細に記述してください。不十分な情報は、対応の遅れや誤解を招く可能性があります。
+        ※ セキュリティに関する内容の場合は、公開せず開発者へ個別に連絡してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 本来どのように動作することを期待していましたか？
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 不具合を再現する手順（できるだけ簡潔かつ正確に記述してください）
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: その他補足情報（ログ・条件・関連Issueなど）
+
+  - type: textarea
+    id: appVersion
+    attributes:
+      label: アプリケーションのバージョン
+      value: |
+        <details>
+
+        ```console
+        $ app --version
+        # バージョン情報をここに貼り付けてください
+        ```
+
+        </details>
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 使用環境（OS / ブラウザ / デバイスなど）
+      value: |
+        <details>
+
+        ```console
+        # Linux の場合:
+        $ cat /etc/os-release
+        $ uname -a
+
+        # macOS の場合:
+        $ sw_vers
+
+        # Windows の場合:
+        C:\> systeminfo
+        ```
+
+        </details>
+
+  - type: textarea
+    id: installer
+    attributes:
+      label: インストール方法（該当する場合）
+      value: |
+        <details>
+        
+        </details>
+
+  - type: textarea
+    id: runtime
+    attributes:
+      label: "実行環境（例: Node.js, Python, Dockerなどのバージョン）"
+      value: |
+        <details>
+        
+        </details>
