@@ -2,6 +2,7 @@ package connect
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -15,6 +16,7 @@ import (
 
 	video "github.com/tikfack/server/internal/application/usecase/video"
 	"github.com/tikfack/server/internal/domain/entity"
+	"github.com/tikfack/server/internal/infrastructure/auth"
 	"github.com/tikfack/server/internal/infrastructure/repository"
 	"github.com/tikfack/server/internal/infrastructure/util"
 )
@@ -23,10 +25,11 @@ import (
 type videoServiceServer struct {
 	videoUsecase video.VideoUsecase
 	logger       *slog.Logger
+	handlerOpts  []connect.HandlerOption
 }
 
 // NewVideoServiceHandler はハンドラーの初期化を行います。
-func NewVideoServiceHandler() *videoServiceServer {
+func NewVideoServiceHandler(opts ...connect.HandlerOption) *videoServiceServer {
 	// repository.NewDMMVideoRepository() の実装を渡す
 	repo, err := repository.NewVideoRepository()
 	if err != nil {
@@ -37,13 +40,15 @@ func NewVideoServiceHandler() *videoServiceServer {
 	return &videoServiceServer{
 		videoUsecase: vu,
 		logger:       slog.Default().With(slog.String("component", "video_handler")),
+		handlerOpts:  append([]connect.HandlerOption{connect.WithCompressMinBytes(0)}, opts...),
 	}
 }
 
-func NewVideoServiceHandlerWithUsecase(vu video.VideoUsecase) *videoServiceServer {
+func NewVideoServiceHandlerWithUsecase(vu video.VideoUsecase, opts ...connect.HandlerOption) *videoServiceServer {
 	return &videoServiceServer{
 		videoUsecase: vu,
 		logger:       slog.Default().With(slog.String("component", "video_handler")),
+		handlerOpts:  append([]connect.HandlerOption{connect.WithCompressMinBytes(0)}, opts...),
 	}
 }
 
@@ -51,7 +56,7 @@ func NewVideoServiceHandlerWithUsecase(vu video.VideoUsecase) *videoServiceServe
 func (s *videoServiceServer) GetHandler() (string, http.Handler) {
 	// 生成されたコードの関数名に合わせてください
 	// 例: pb.NewVideoServiceHandler または v1connect.NewVideoServiceHandler
-	pattern, handler := videoconnect.NewVideoServiceHandler(s, connect.WithCompressMinBytes(0))
+	pattern, handler := videoconnect.NewVideoServiceHandler(s, s.handlerOpts...)
 	return pattern, handler
 }
 
@@ -61,6 +66,12 @@ func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.R
 		"date", req.Msg.Date,
 		"hits", req.Msg.Hits,
 		"offset", req.Msg.Offset)
+
+	userID, ok := ctx.Value(auth.SubKey).(string)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("user not authenticated"))
+	}
+	s.logger.Debug("authenticated user", "sub", userID)
 
 	var targetDate time.Time
 	if req.Msg.Date == "" {

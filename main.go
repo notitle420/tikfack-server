@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
 
+	"github.com/bufbuild/connect-go"
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 
+	"github.com/tikfack/server/internal/infrastructure/auth"
 	connecthandler "github.com/tikfack/server/internal/infrastructure/connect"
 )
 
@@ -27,7 +30,20 @@ func main() {
 		port = "50051"
 	}
 
-	videoHandler := connecthandler.NewVideoServiceHandler()
+	ctx := context.Background()
+	issuerURL := os.Getenv("ISSUER_URL")
+	clientID := os.Getenv("CLIENT_ID")
+
+	verifier, err := auth.NewVerifier(ctx, issuerURL, clientID)
+	if err != nil {
+		slog.Error("OIDC verifier init failed", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("OIDC verifier initialized", "verifier", verifier)
+
+	oidcInterceptor := auth.OIDCInterceptor(verifier)
+
+	videoHandler := connecthandler.NewVideoServiceHandler(connect.WithInterceptors(oidcInterceptor))
 	mux := http.NewServeMux()
 	pattern, handler := videoHandler.GetHandler()
 	mux.Handle(pattern, handler)
@@ -71,9 +87,9 @@ func setupLogger(level string) {
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slog.Info("新しいリクエスト", 
-			"method", r.Method, 
-			"path", r.URL.Path, 
+		slog.Info("新しいリクエスト",
+			"method", r.Method,
+			"path", r.URL.Path,
 			"remote_addr", r.RemoteAddr)
 		next.ServeHTTP(w, r)
 	})
