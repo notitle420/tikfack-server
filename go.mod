@@ -7,9 +7,7 @@ toolchain go1.24.3
 require (
 	github.com/bufbuild/connect-go v1.10.0
 	github.com/coreos/go-oidc v2.3.0+incompatible
-	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/mviniciusgc/gocloak/v13 v13.6.1
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/mock v0.5.2
@@ -21,6 +19,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/mviniciusgc/gocloak/v13 v13.6.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

@@ -15,7 +15,7 @@ import (
 	pb "github.com/tikfack/server/gen/video"
 	mockvideo "github.com/tikfack/server/internal/application/usecase/mock"
 	"github.com/tikfack/server/internal/domain/entity"
-	"github.com/tikfack/server/internal/infrastructure/auth"
+	"github.com/tikfack/server/internal/middleware/ctxkeys"
 )
 
 // ===== 共通テストデータ =====
@@ -255,7 +255,7 @@ func TestGetVideosByDate(t *testing.T) {
 			tt.mockSetup(mockUsecase)
 
 			req := connect.NewRequest(tt.req)
-			ctx := context.WithValue(context.Background(), auth.SubKey, "test-user")
+			ctx := context.WithValue(context.Background(), ctxkeys.SubKey, "test-user")
 			resp, err := handler.GetVideosByDate(ctx, req)
 
 			if tt.expectedError != nil {
@@ -280,7 +280,7 @@ func TestGetVideosByDate(t *testing.T) {
 }
 
 func TestSearchVideos(t *testing.T) {
-	ctx := context.WithValue(context.Background(), auth.SubKey, "test-user")
+	ctx := context.WithValue(context.Background(), ctxkeys.SubKey, "test-user")
 
 	tests := []struct {
 		name        string
@@ -364,7 +364,7 @@ func TestSearchVideos(t *testing.T) {
 }
 
 func TestGetVideosByID(t *testing.T) {
-	ctx := context.WithValue(context.Background(), auth.SubKey, "test-user")
+	ctx := context.WithValue(context.Background(), ctxkeys.SubKey, "test-user")
 
 	tests := []struct {
 		name        string
@@ -467,7 +467,7 @@ func TestGetVideosByID(t *testing.T) {
 }
 
 func TestGetVideosByKeyword(t *testing.T) {
-	ctx := context.WithValue(context.Background(), auth.SubKey, "test-user")
+	ctx := context.WithValue(context.Background(), ctxkeys.SubKey, "test-user")
 
 	tests := []struct {
 		name        string
@@ -568,7 +568,7 @@ func TestGetVideosByKeyword(t *testing.T) {
 }
 
 func TestGetVideoById(t *testing.T) {
-	ctx := context.WithValue(context.Background(), auth.SubKey, "test-user")
+	ctx := context.WithValue(context.Background(), ctxkeys.SubKey, "test-user")
 
 	tests := []struct {
 		name        string

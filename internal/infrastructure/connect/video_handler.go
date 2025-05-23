@@ -16,9 +16,9 @@ import (
 
 	video "github.com/tikfack/server/internal/application/usecase/video"
 	"github.com/tikfack/server/internal/domain/entity"
-	"github.com/tikfack/server/internal/infrastructure/auth"
 	"github.com/tikfack/server/internal/infrastructure/repository"
 	"github.com/tikfack/server/internal/infrastructure/util"
+	"github.com/tikfack/server/internal/middleware/ctxkeys"
 )
 
 // videoServiceServer は Connect のサーバー実装です。
@@ -67,7 +67,7 @@ func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.R
 		"hits", req.Msg.Hits,
 		"offset", req.Msg.Offset)
 
-	userID, ok := ctx.Value(auth.SubKey).(string)
+	userID, ok := ctx.Value(ctxkeys.SubKey).(string)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("user not authenticated"))
 	}
