@@ -1,0 +1,49 @@
+%% Domain Entity Diagram
+classDiagram
+    class Video {
+        string DmmID
+        string Title
+        string DirectURL
+        string URL
+        string SampleURL
+        string ThumbnailURL
+        time CreatedAt
+        int Price
+        int LikesCount
+    }
+    class Actress {
+        string ID
+        string Name
+    }
+    class Genre {
+        string ID
+        string Name
+    }
+    class Maker {
+        string ID
+        string Name
+    }
+    class Series {
+        string ID
+        string Name
+    }
+    class Director {
+        string ID
+        string Name
+    }
+    class Review {
+        int Count
+        float Average
+    }
+    class SearchMetadata {
+        int ResultCount
+        int TotalCount
+        int FirstPosition
+    }
+
+    Video "1" *-- "0..*" Actress : includes
+    Video "1" *-- "0..*" Genre : categorized_by
+    Video "1" *-- "0..*" Maker : produced_by
+    Video "1" *-- "0..*" Series : part_of
+    Video "1" *-- "0..*" Director : directed_by
+    Video "1" --> Review : has

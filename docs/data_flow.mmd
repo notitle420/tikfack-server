@@ -1,0 +1,10 @@
+flowchart TD
+    Client -->|HTTP/Connect| Handler
+    Handler --> Usecase
+    Usecase --> Repository
+    Repository --> DMMAPI(("DMM API"))
+    DMMAPI --> Repository
+    Repository --> Usecase
+    Usecase --> Handler
+    Handler --> Client
+
