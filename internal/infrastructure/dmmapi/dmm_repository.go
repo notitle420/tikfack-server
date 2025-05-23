@@ -10,6 +10,7 @@ import (
 
 	"github.com/tikfack/server/internal/domain/entity"
 	"github.com/tikfack/server/internal/domain/repository"
+	"github.com/tikfack/server/internal/middleware/logger"
 )
 
 type Repository struct {
@@ -57,7 +58,7 @@ func NewRepositoryWithLogger(client ClientInterface, mapper MapperInterface, log
 
 // SetLogger sets a custom logger for the repository
 func (r *Repository) SetLogger(logger *slog.Logger) {
-	r.logger = logger.With(slog.String("component", "dmmapi"))
+	logger = logger.With(slog.String("component", "dmmapi"))
 }
 
 var ErrAPIError = errors.New("API error")
@@ -71,7 +72,8 @@ func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time, 
 		targetDate.Format("2006-01-02T15:04:05"),
 		time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 23, 59, 0, 0, targetDate.Location()).Format("2006-01-02T15:04:05"),
 	)
-	r.logger.Debug("calling API", "path", path)
+	logger := logger.LoggerWithCtx(ctx)
+	logger.Debug("calling API", "path", path)
 	var resp Response
 	if err := r.client.Call(path, &resp); err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrAPIError, err)
@@ -83,9 +85,9 @@ func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time, 
 	if len(videos) > 0 {
 		sampleSize := min(5, len(videos))
 		sample := videos[:sampleSize]
-		r.logger.Debug("video results sample", "count", sampleSize, "videos", sample)
+		logger.Debug("video results sample", "count", sampleSize, "videos", sample)
 	} else {
-		r.logger.Debug("No videos found")
+		logger.Debug("No videos found")
 	}
 
 	return videos, metadata, nil
@@ -97,7 +99,8 @@ func (r *Repository) GetVideoById(ctx context.Context, dmmID string) (*entity.Vi
 		"/v3/ItemList?site=FANZA&service=digital&floor=videoa&cid=%s",
 		dmmID,
 	)
-	r.logger.Debug("calling API", "path", path)
+	logger := logger.LoggerWithCtx(ctx)
+	logger.Debug("calling API", "path", path)
 	var resp Response
 	if err := r.client.Call(path, &resp); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrAPIError, err)
@@ -147,7 +150,8 @@ func (r *Repository) SearchVideos(
 	}
 
 	path := "/v3/ItemList?" + strings.Join(params, "&")
-	r.logger.Debug("calling API", "path", path)
+	logger := logger.LoggerWithCtx(ctx)
+	logger.Debug("calling API", "path", path)
 	var resp Response
 	if err := r.client.Call(path, &resp); err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrAPIError, err)
@@ -233,7 +237,8 @@ func (r *Repository) GetVideosByID(
 	}
 
 	path := "/v3/ItemList?" + strings.Join(params, "&")
-	r.logger.Debug("calling API", "path", path)
+	logger := logger.LoggerWithCtx(ctx)
+	logger.Debug("calling API", "path", path)
 	var resp Response
 	if err := r.client.Call(path, &resp); err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrAPIError, err)
@@ -285,7 +290,8 @@ func (r *Repository) GetVideosByKeyword(
 	}
 
 	path := "/v3/ItemList?" + strings.Join(params, "&")
-	r.logger.Debug("calling API", "path", path)
+	logger := logger.LoggerWithCtx(ctx)
+	logger.Debug("calling API", "path", path)
 	var resp Response
 	if err := r.client.Call(path, &resp); err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrAPIError, err)

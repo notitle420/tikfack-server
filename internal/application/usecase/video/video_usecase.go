@@ -9,6 +9,7 @@ import (
 
 	"github.com/tikfack/server/internal/domain/entity"
 	"github.com/tikfack/server/internal/domain/repository"
+	"github.com/tikfack/server/internal/middleware/logger"
 )
 
 // VideoUsecase は動画関連のユースケースを定義するインターフェイス
@@ -43,9 +44,18 @@ func NewVideoUsecase(repo repository.VideoRepository) VideoUsecase {
 	}
 }
 
+func (u *videoUsecase) loggerWithCtx(ctx context.Context) *slog.Logger {
+    return u.logger.With(
+        slog.String("user_id",  logger.UserIDFromContext(ctx)),   // 例: いずれかの場所で ctx に "sub" をセット済み
+        slog.String("trace_id", logger.TraceIDFromContext(ctx)),  // 例: Interceptor などで ctx にセット済み
+		slog.String("token_id", logger.TokenIDFromContext(ctx)),
+    )
+}
+
 // GetVideosByDate は指定日付の動画一覧を取得する
 func (u *videoUsecase) GetVideosByDate(ctx context.Context, targetDate time.Time, hits, offset int32) ([]entity.Video, *entity.SearchMetadata, error) {
-	u.logger.Debug("GetVideosByDate called", 
+	logger := u.loggerWithCtx(ctx)
+	logger.Debug("GetVideosByDate called", 
 		"targetDate", targetDate.Format("2006-01-02"),
 		"hits", hits,
 		"offset", offset,
@@ -55,13 +65,15 @@ func (u *videoUsecase) GetVideosByDate(ctx context.Context, targetDate time.Time
 
 // GetVideoById は、指定された DMMビデオID の動画を取得する
 func (u *videoUsecase) GetVideoById(ctx context.Context, dmmId string) (*entity.Video, error) {
-	u.logger.Debug("GetVideoById called", "dmmId", dmmId)
+	logger := u.loggerWithCtx(ctx)
+	logger.Debug("GetVideoById called", "dmmId", dmmId)
 	return u.videoRepo.GetVideoById(ctx, dmmId)
 }
 
 // SearchVideos はキーワードやIDを使って動画を検索する
 func (u *videoUsecase) SearchVideos(ctx context.Context, keyword, actressID, genreID, makerID, seriesID, directorID string) ([]entity.Video, *entity.SearchMetadata, error) {
-	u.logger.Debug("SearchVideos called",
+	logger := u.loggerWithCtx(ctx)
+	logger.Debug("SearchVideos called",
 		"keyword", keyword,
 		"actressID", actressID,
 		"genreID", genreID,
@@ -74,7 +86,8 @@ func (u *videoUsecase) SearchVideos(ctx context.Context, keyword, actressID, gen
 
 // GetVideosByID は指定されたIDを使って動画を検索する
 func (u *videoUsecase) GetVideosByID(ctx context.Context, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs []string, hits, offset int32, sort, gteDate, lteDate, site, service, floor string) ([]entity.Video, *entity.SearchMetadata, error) {
-	u.logger.Debug("GetVideosByID called",
+	logger := u.loggerWithCtx(ctx)
+	logger.Debug("GetVideosByID called",
 		"actressIDs", actressIDs,
 		"genreIDs", genreIDs,
 		"makerIDs", makerIDs,
@@ -94,7 +107,8 @@ func (u *videoUsecase) GetVideosByID(ctx context.Context, actressIDs, genreIDs, 
 
 // GetVideosByKeyword はキーワードを使って動画を検索する
 func (u *videoUsecase) GetVideosByKeyword(ctx context.Context, keyword string, hits, offset int32, sort, gteDate, lteDate, site, service, floor string) ([]entity.Video, *entity.SearchMetadata, error) {
-	u.logger.Debug("GetVideosByKeyword called",
+	logger := u.loggerWithCtx(ctx)
+	logger.Debug("GetVideosByKeyword called",
 		"keyword", keyword,
 		"hits", hits,
 		"offset", offset,
