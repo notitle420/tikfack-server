@@ -8,10 +8,10 @@ import (
 
 	"github.com/bufbuild/connect-go"
 	"github.com/joho/godotenv"
+	gocloak "github.com/mviniciusgc/gocloak/v13"
 	"github.com/rs/cors"
-
-	"github.com/tikfack/server/internal/infrastructure/auth"
 	connecthandler "github.com/tikfack/server/internal/infrastructure/connect"
+	auth "github.com/tikfack/server/internal/middleware/auth"
 )
 
 func main() {
@@ -30,12 +30,18 @@ func main() {
 		port = "50051"
 	}
 
-	ctx := context.Background()
 	issuerURL := os.Getenv("ISSUER_URL")
 	clientID := os.Getenv("CLIENT_ID")
+	realm := os.Getenv("KEYCLOAK_REALM")
+	clientSecret := os.Getenv("KEYCLOAK_BACKEND_CLIENT_SECRET")
+	//keycloakTokenEndpoint := os.Getenv("KEYCLOAK_TOKEN_ENDPOINT")
 	slog.Info("issuerURL", "issuerURL", issuerURL)
 	slog.Info("clientID", "clientID", clientID)
 
+	gocloakClient := gocloak.NewClient("http://localhost:8080")
+
+	//ユーザーIDを取得するためにOIDCを使用
+	ctx := context.Background()
 	verifier, err := auth.NewVerifier(ctx, issuerURL, clientID)
 	if err != nil {
 		slog.Error("OIDC verifier init failed", "error", err)
@@ -43,9 +49,25 @@ func main() {
 	}
 	slog.Info("OIDC verifier initialized", "verifier", verifier)
 
-	oidcInterceptor := auth.OIDCInterceptor(verifier)
+	introspectionInterceptor := auth.IntrospectionInterceptor(
+		verifier,
+		gocloakClient,
+		realm,
+		clientID,
+		clientSecret,
+	)
+	permInterceptor := auth.PermissionInterceptor(
+		gocloakClient,
+		realm,
+		clientID,
+		auth.CheckPermissionFunc,
+	)
 
-	videoHandler := connecthandler.NewVideoServiceHandler(connect.WithInterceptors(oidcInterceptor))
+	videoHandler := connecthandler.NewVideoServiceHandler(
+		connect.WithInterceptors(
+			introspectionInterceptor,
+			permInterceptor,
+		))
 	mux := http.NewServeMux()
 	pattern, handler := videoHandler.GetHandler()
 	mux.Handle(pattern, handler)
@@ -84,7 +106,7 @@ func setupLogger(level string) {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
 	slog.SetDefault(logger)
 
-	logger.Info("ロガーを設定しました", "level", logLevel.String())
+	slog.Info("ロガーを設定しました", "level", logLevel.String())
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
