@@ -15,15 +15,12 @@ import (
 	pb "github.com/tikfack/server/gen/video"
 	mockvideo "github.com/tikfack/server/internal/application/usecase/mock"
 	"github.com/tikfack/server/internal/domain/entity"
+	"github.com/tikfack/server/internal/middleware/ctxkeys"
 )
-
-// ===== 共通Matcherヘルパー =====
-func eqInt32(want int32) gomock.Matcher   { return gomock.Eq(want) }
-func eqString(want string) gomock.Matcher { return gomock.Eq(want) }
 
 // ===== 共通テストデータ =====
 var (
-	testTime = time.Date(2024, 1, 2, 15, 4, 5, 0, time.UTC)
+	testTime  = time.Date(2024, 1, 2, 15, 4, 5, 0, time.UTC)
 	testVideo = entity.Video{
 		DmmID:        "test123",
 		Title:        "動画1",
@@ -59,31 +56,31 @@ func checkVideoFields(t *testing.T, got *pb.Video, want entity.Video) {
 	require.Equal(t, int32(want.LikesCount), got.LikesCount)
 	require.Equal(t, int32(want.Review.Count), got.Review.Count)
 	require.Equal(t, want.Review.Average, got.Review.Average)
-	
+
 	require.Len(t, got.Actresses, len(want.Actresses))
 	for i, a := range want.Actresses {
 		require.Equal(t, a.ID, got.Actresses[i].Id)
 		require.Equal(t, a.Name, got.Actresses[i].Name)
 	}
-	
+
 	require.Len(t, got.Genres, len(want.Genres))
 	for i, g := range want.Genres {
 		require.Equal(t, g.ID, got.Genres[i].Id)
 		require.Equal(t, g.Name, got.Genres[i].Name)
 	}
-	
+
 	require.Len(t, got.Makers, len(want.Makers))
 	for i, m := range want.Makers {
 		require.Equal(t, m.ID, got.Makers[i].Id)
 		require.Equal(t, m.Name, got.Makers[i].Name)
 	}
-	
+
 	require.Len(t, got.Series, len(want.Series))
 	for i, s := range want.Series {
 		require.Equal(t, s.ID, got.Series[i].Id)
 		require.Equal(t, s.Name, got.Series[i].Name)
 	}
-	
+
 	require.Len(t, got.Directors, len(want.Directors))
 	for i, d := range want.Directors {
 		require.Equal(t, d.ID, got.Directors[i].Id)
@@ -247,29 +244,30 @@ func TestGetVideosByDate(t *testing.T) {
 			expectedError:  status.Error(codes.Internal, "動画の取得に失敗しました: database error"),
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			
+
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
 			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.mockSetup(mockUsecase)
-			
+
 			req := connect.NewRequest(tt.req)
-			resp, err := handler.GetVideosByDate(context.Background(), req)
-			
+			ctx := context.WithValue(context.Background(), ctxkeys.SubKey, "test-user")
+			resp, err := handler.GetVideosByDate(ctx, req)
+
 			if tt.expectedError != nil {
 				require.Error(t, err)
 				require.Equal(t, tt.expectedError.Error(), err.Error())
 				return
 			}
-			
+
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			require.NotNil(t, resp.Msg)
-			
+
 			if len(tt.expectedVideos) > 0 {
 				require.NotEmpty(t, resp.Msg.Videos)
 				checkVideoFields(t, resp.Msg.Videos[0], tt.expectedVideos[0])
@@ -282,8 +280,8 @@ func TestGetVideosByDate(t *testing.T) {
 }
 
 func TestSearchVideos(t *testing.T) {
-	ctx := context.Background()
-	
+	ctx := context.WithValue(context.Background(), ctxkeys.SubKey, "test-user")
+
 	tests := []struct {
 		name        string
 		request     *pb.SearchVideosRequest
@@ -326,19 +324,19 @@ func TestSearchVideos(t *testing.T) {
 			errorCode:   codes.Internal,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			
+
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
 			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.setupMock(mockUsecase)
-			
+
 			req := connect.NewRequest(tt.request)
 			resp, err := handler.SearchVideos(ctx, req)
-			
+
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.errorCode != 0 {
@@ -348,26 +346,26 @@ func TestSearchVideos(t *testing.T) {
 				}
 				return
 			}
-			
+
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			require.NotNil(t, resp.Msg)
-			
+
 			if len(tt.expected) > 0 {
 				require.NotEmpty(t, resp.Msg.Videos)
 				checkVideoFields(t, resp.Msg.Videos[0], tt.expected[0])
 			} else {
 				require.Empty(t, resp.Msg.Videos)
 			}
-			
+
 			checkMetadata(t, resp.Msg.Metadata, tt.expectedMD)
 		})
 	}
 }
 
 func TestGetVideosByID(t *testing.T) {
-	ctx := context.Background()
-	
+	ctx := context.WithValue(context.Background(), ctxkeys.SubKey, "test-user")
+
 	tests := []struct {
 		name        string
 		request     *pb.GetVideosByIDRequest
@@ -429,19 +427,19 @@ func TestGetVideosByID(t *testing.T) {
 			errorCode:   codes.Internal,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			
+
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
 			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.setupMock(mockUsecase)
-			
+
 			req := connect.NewRequest(tt.request)
 			resp, err := handler.GetVideosByID(ctx, req)
-			
+
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.errorCode != 0 {
@@ -451,26 +449,26 @@ func TestGetVideosByID(t *testing.T) {
 				}
 				return
 			}
-			
+
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			require.NotNil(t, resp.Msg)
-			
+
 			if len(tt.expected) > 0 {
 				require.NotEmpty(t, resp.Msg.Videos)
 				checkVideoFields(t, resp.Msg.Videos[0], tt.expected[0])
 			} else {
 				require.Empty(t, resp.Msg.Videos)
 			}
-			
+
 			checkMetadata(t, resp.Msg.Metadata, tt.expectedMD)
 		})
 	}
 }
 
 func TestGetVideosByKeyword(t *testing.T) {
-	ctx := context.Background()
-	
+	ctx := context.WithValue(context.Background(), ctxkeys.SubKey, "test-user")
+
 	tests := []struct {
 		name        string
 		request     *pb.GetVideosByKeywordRequest
@@ -530,19 +528,19 @@ func TestGetVideosByKeyword(t *testing.T) {
 			errorCode:   codes.Internal,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			
+
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
 			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.setupMock(mockUsecase)
-			
+
 			req := connect.NewRequest(tt.request)
 			resp, err := handler.GetVideosByKeyword(ctx, req)
-			
+
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.errorCode != 0 {
@@ -552,26 +550,26 @@ func TestGetVideosByKeyword(t *testing.T) {
 				}
 				return
 			}
-			
+
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			require.NotNil(t, resp.Msg)
-			
+
 			if len(tt.expected) > 0 {
 				require.NotEmpty(t, resp.Msg.Videos)
 				checkVideoFields(t, resp.Msg.Videos[0], tt.expected[0])
 			} else {
 				require.Empty(t, resp.Msg.Videos)
 			}
-			
+
 			checkMetadata(t, resp.Msg.Metadata, tt.expectedMD)
 		})
 	}
 }
 
 func TestGetVideoById(t *testing.T) {
-	ctx := context.Background()
-	
+	ctx := context.WithValue(context.Background(), ctxkeys.SubKey, "test-user")
+
 	tests := []struct {
 		name        string
 		request     *pb.GetVideoByIdRequest
@@ -616,19 +614,19 @@ func TestGetVideoById(t *testing.T) {
 			errorCode:   codes.Internal,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			
+
 			mockUsecase := mockvideo.NewMockVideoUsecase(ctrl)
 			handler := NewVideoServiceHandlerWithUsecase(mockUsecase)
 			tt.setupMock(mockUsecase)
-			
+
 			req := connect.NewRequest(tt.request)
 			resp, err := handler.GetVideoById(ctx, req)
-			
+
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.errorCode != 0 {
@@ -638,12 +636,12 @@ func TestGetVideoById(t *testing.T) {
 				}
 				return
 			}
-			
+
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			require.NotNil(t, resp.Msg)
 			require.NotNil(t, resp.Msg.Video)
-			
+
 			checkVideoFields(t, resp.Msg.Video, *tt.expected)
 		})
 	}
