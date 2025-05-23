@@ -12,6 +12,7 @@ import (
 	"github.com/rs/cors"
 	connecthandler "github.com/tikfack/server/internal/infrastructure/connect"
 	auth "github.com/tikfack/server/internal/middleware/auth"
+	"github.com/tikfack/server/internal/middleware/logger"
 )
 
 func main() {
@@ -66,6 +67,7 @@ func main() {
 	videoHandler := connecthandler.NewVideoServiceHandler(
 		connect.WithInterceptors(
 			introspectionInterceptor,
+			logger.LoggingInterceptor(),
 			permInterceptor,
 		))
 	mux := http.NewServeMux()
