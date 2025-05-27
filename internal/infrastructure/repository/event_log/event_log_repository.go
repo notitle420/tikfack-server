@@ -3,6 +3,7 @@ package event_log
 import (
 	"context"
 	"encoding/json"
+	"log"
 
 	"github.com/segmentio/kafka-go"
 
@@ -27,7 +28,7 @@ func (k *KafkaEventLogRepository) InsertEventLog(ctx context.Context, e *entity.
 		return err
 	}
 	msg := kafka.Message{
-		Key:   []byte(e.UserID + ":" + e.EventTime.String()),
+		Key:   []byte(e.EventLogID + ":" + e.EventTime.String()),
 		Value: payload,
 	}
 	return k.writer.WriteMessages(ctx, msg)
@@ -35,6 +36,7 @@ func (k *KafkaEventLogRepository) InsertEventLog(ctx context.Context, e *entity.
 
 // InsertEventLogs publishes multiple EventLogs in one batch to Kafka.
 func (k *KafkaEventLogRepository) InsertEventLogs(ctx context.Context, events []*entity.EventLog) error {
+	log.Println("InsertEventLogs", events)
 	msgs := make([]kafka.Message, len(events))
 	for i, e := range events {
 		payload, err := json.Marshal(e)
@@ -42,7 +44,7 @@ func (k *KafkaEventLogRepository) InsertEventLogs(ctx context.Context, events []
 			return err
 		}
 		msgs[i] = kafka.Message{
-			Key:   []byte(e.UserID + ":" + e.EventTime.String()),
+			Key:   []byte(e.EventLogID + ":" + e.EventTime.String()),
 			Value: payload,
 		}
 	}

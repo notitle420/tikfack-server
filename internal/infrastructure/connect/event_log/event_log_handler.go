@@ -7,6 +7,8 @@ import (
 
 	"log/slog"
 
+	"github.com/google/uuid"
+
 	connect "github.com/bufbuild/connect-go"
 	"github.com/segmentio/kafka-go"
 	pb "github.com/tikfack/server/gen/event_log"
@@ -14,6 +16,7 @@ import (
 	eventloguc "github.com/tikfack/server/internal/application/usecase/event_log"
 	"github.com/tikfack/server/internal/domain/entity"
 	repo "github.com/tikfack/server/internal/infrastructure/repository/event_log"
+	"github.com/tikfack/server/internal/middleware/ctxkeys"
 )
 
 // eventLogServiceServer implements the Connect-Go gRPC service for event logs.
@@ -72,7 +75,10 @@ func (s *eventLogServiceServer) Record(
 		s.logger.Error("failed to marshal props", slog.Any("props", e.Props), slog.String("error", err.Error()))
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+
 	domainEvt := &entity.EventLog{
+		EventLogID: uuid.New().String(),
+		TraceID:    ctxkeys.TraceIDFromContext(ctx),
 		UserID:     e.UserId,
 		SessionID:  e.SessionId,
 		VideoDmmID: e.VideoDmmId,
@@ -107,6 +113,8 @@ func (s *eventLogServiceServer) RecordBatch(
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		events[i] = &entity.EventLog{
+			EventLogID: uuid.New().String(),
+			TraceID:    ctxkeys.TraceIDFromContext(ctx),
 			UserID:     e.UserId,
 			SessionID:  e.SessionId,
 			VideoDmmID: e.VideoDmmId,

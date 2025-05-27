@@ -7,8 +7,10 @@ import (
 
 // EventLog represents a user event log entity
 type EventLog struct {
+	EventLogID  string 			//EventLog ID (UUID format)
 	UserID      string          // User ID (UUID format)
 	SessionID   string          // Session identifier (e.g., "550e8400-e29b-41d4-a716-446655440000")
+	TraceID     string          // Trace ID (e.g., "550e8400-e29b-41d4-a716-446655440000")
 	VideoDmmID  string          // DMM video ID (e.g., "abc123")
 	ActressIDs  []string        // Actress IDs (e.g., ["123", "456"])
 	DirectorIDs []string        // Director IDs (e.g., ["123", "456"])

@@ -9,7 +9,7 @@ import (
 
 	"github.com/tikfack/server/internal/domain/entity"
 	"github.com/tikfack/server/internal/domain/repository"
-	"github.com/tikfack/server/internal/middleware/logger"
+	"github.com/tikfack/server/internal/middleware/ctxkeys"
 )
 
 // VideoUsecase は動画関連のユースケースを定義するインターフェイス
@@ -46,9 +46,9 @@ func NewVideoUsecase(repo repository.VideoRepository) VideoUsecase {
 
 func (u *videoUsecase) loggerWithCtx(ctx context.Context) *slog.Logger {
     return u.logger.With(
-        slog.String("user_id",  logger.UserIDFromContext(ctx)),   // 例: いずれかの場所で ctx に "sub" をセット済み
-        slog.String("trace_id", logger.TraceIDFromContext(ctx)),  // 例: Interceptor などで ctx にセット済み
-		slog.String("token_id", logger.TokenIDFromContext(ctx)),
+        slog.String("user_id",  ctxkeys.UserIDFromContext(ctx)),   // 例: いずれかの場所で ctx に "sub" をセット済み
+        slog.String("trace_id", ctxkeys.TraceIDFromContext(ctx)),  // 例: Interceptor などで ctx にセット済み
+		slog.String("token_id", ctxkeys.TokenIDFromContext(ctx)),
     )
 }
 
