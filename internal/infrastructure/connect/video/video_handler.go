@@ -15,7 +15,7 @@ import (
 
 	video "github.com/tikfack/server/internal/application/usecase/video"
 	"github.com/tikfack/server/internal/domain/entity"
-	"github.com/tikfack/server/internal/infrastructure/repository"
+	repository "github.com/tikfack/server/internal/infrastructure/repository/video"
 	"github.com/tikfack/server/internal/infrastructure/util"
 	"github.com/tikfack/server/internal/middleware/logger"
 )

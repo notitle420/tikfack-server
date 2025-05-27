@@ -72,6 +72,8 @@ func PermissionInterceptor(
 				resourceName = "resource-get-videos-by-keyword"
 			case strings.HasSuffix(methodFullName, "GetVideosByDate"):
 				resourceName = "resource-get-videos-by-date"
+			case strings.HasSuffix(methodFullName, "GetVideosByID"):
+				resourceName = "resource-get-videos-by-id"
 			default:
 				return nil, connect.NewError(connect.CodePermissionDenied,
 					errors.New("no resource mapping for "+methodFullName))
