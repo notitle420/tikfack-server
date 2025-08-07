@@ -9,8 +9,8 @@ import (
 	"github.com/bufbuild/connect-go"
 	"github.com/coreos/go-oidc"
 	gocloak "github.com/mviniciusgc/gocloak/v13"
-	"github.com/tikfack/server/internal/middleware/ctxkeys"
 	"github.com/tikfack/server/internal/middleware/auth/mock"
+	"github.com/tikfack/server/internal/middleware/ctxkeys"
 )
 
 // OIDCInterceptor validates Authorization header on every RPC and stores sub in context.
@@ -146,10 +146,15 @@ func PermissionInterceptorWithMapper(
 			
 			// 2) メソッド名 → resourceNameを決定
 			methodFullName := req.Spec().Procedure
-			resourceName, err := mapper.GetResource(methodFullName)
-			if err != nil {
-				slog.Error("failed to map method to resource", "method", methodFullName, "error", err)
-				return nil, connect.NewError(connect.CodePermissionDenied, err)
+			var resourceName string
+			switch {
+			case strings.HasSuffix(methodFullName, "GetVideosByKeyword"):
+				resourceName = "resource-get-videos-by-keyword"
+			case strings.HasSuffix(methodFullName, "GetVideosByDate"):
+				resourceName = "resource-get-videos-by-date"
+			default:
+				return nil, connect.NewError(connect.CodePermissionDenied,
+					errors.New("no resource mapping for "+methodFullName))
 			}
 
 			// 3) Keycloak へ問い合わせ

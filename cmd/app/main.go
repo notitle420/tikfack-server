@@ -10,7 +10,8 @@ import (
 	"github.com/joho/godotenv"
 	gocloak "github.com/mviniciusgc/gocloak/v13"
 	"github.com/rs/cors"
-	connecthandler "github.com/tikfack/server/internal/infrastructure/connect"
+	eventLogHandler "github.com/tikfack/server/internal/infrastructure/connect/event_log"
+	videoHandler "github.com/tikfack/server/internal/infrastructure/connect/video"
 	auth "github.com/tikfack/server/internal/middleware/auth"
 	"github.com/tikfack/server/internal/middleware/logger"
 )
@@ -51,6 +52,8 @@ func main() {
 	}
 	slog.Info("OIDC verifier initialized", "verifier", verifier)
 
+	mux := http.NewServeMux()
+
 	introspectionInterceptor := auth.IntrospectionInterceptor(
 		verifier,
 		gocloakClient,
@@ -65,15 +68,23 @@ func main() {
 		auth.CheckPermissionFunc,
 	)
 
-	videoHandler := connecthandler.NewVideoServiceHandler(
+	videoHandler := videoHandler.NewVideoServiceHandler(
 		connect.WithInterceptors(
 			introspectionInterceptor,
 			logger.LoggingInterceptor(),
 			permInterceptor,
 		))
-	mux := http.NewServeMux()
-	pattern, handler := videoHandler.GetHandler()
-	mux.Handle(pattern, handler)
+	vpattern, vhandler := videoHandler.GetHandler()
+	mux.Handle(vpattern, vhandler)
+
+	eventLogHandler := eventLogHandler.NewEventLogServiceHandler(
+		connect.WithInterceptors(
+			logger.LoggingInterceptor(),
+		),
+	)
+	
+	epattern, ehandler := eventLogHandler.GetHandler()
+	mux.Handle(epattern, ehandler)
 
 	// ミドルウェアチェイン
 	loggedHandler := loggingMiddleware(mux)

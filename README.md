@@ -189,7 +189,64 @@ tikfack-server/
 └── README.md            # このファイル
 ```
 
+<<<<<<< HEAD
+# Curl テスト
+EventLog/Record
+```
+    curl -X POST http://localhost:50051/eventlog.EventLogService/Record \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "userId": "123e4567-e89b-12d3-a456-426614174000",
+      "videoDmmId": "abc123",
+      "sessionId": "session-xyz",
+      "eventType": "start",
+      "eventTime": "2025-05-26T10:00:00Z",
+      "props": { "position": 0, "deviceType": "mobile" }
+    }
+  }'
+```
+
+EventLog/RecordBatch
+```
+curl -X POST http://localhost:50051/eventlog.EventLogService/RecordBatch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": [
+      {
+        "id":          "550e8400-e29b-41d4-a716-446655440000",
+        "userId":      "123e4567-e89b-12d3-a456-426614174000",
+        "videoDmmId":  "abc123",
+        "sessionId":   "session-xyz",
+        "eventType":   "start",
+        "eventTime":   "2025-05-26T10:00:00Z",
+        "props": {
+          "position": 0,
+          "deviceType": "mobile"
+        }
+      },
+      {
+        "id":          "550e8400-e29b-41d4-a716-446655440001",
+        "userId":      "123e4567-e89b-12d3-a456-426614174000",
+        "videoDmmId":  "abc123",
+        "sessionId":   "session-xyz",
+        "eventType":   "complete",
+        "eventTime":   "2025-05-26T10:05:00Z",
+        "props": {
+          "position": 300,
+          "percent": 1.0
+        }
+      }
+    ]
+  }'
+
+```
+
+## ライセンス
+=======
 ### アーキテクチャレイヤー
+>>>>>>> dev
 
 - **Application Layer**: ビジネスロジックとユースケース
 - **Domain Layer**: ドメインエンティティとビジネスルール
