@@ -17,6 +17,7 @@ branch_changes.diff
 
 # カバレッジファイル
 *.out
+coverage.html
 
 # Go特有
 *.o
@@ -39,3 +40,6 @@ branch_changes.diff
 .Trashes
 ehthumbs.db
 Thumbs.db 
+
+#srena
+*.serena
