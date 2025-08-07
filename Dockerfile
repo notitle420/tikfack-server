@@ -1,7 +1,7 @@
 # ======================
 # 1. ビルド用ステージ
 # ======================
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # 作業ディレクトリを設定
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # ビルド (静的リンク)
-RUN go build -o server main.go
+RUN go build -o server ./cmd/app
 
 # ======================
 # 2. 実行用ステージ
@@ -27,7 +27,7 @@ WORKDIR /app
 COPY --from=builder /app/server .
 
 # コンテナがListenするポート (REST API と gRPC)
-EXPOSE 8080 50051
+EXPOSE 50051
 
 # 実行コマンド
 CMD ["./server"]
