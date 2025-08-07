@@ -27,7 +27,10 @@ func TraceIDFromContext(ctx context.Context) string {
 func TokenIDFromContext(ctx context.Context) string {
     v := ctx.Value(ctxkeys.TokenKey)
     if TokenKey, ok := v.(string); ok {
-        return TokenKey[0:10]
+        if len(TokenKey) >= 10 {
+            return TokenKey[0:10]
+        }
+        return ""
     }
     return ""
 }
