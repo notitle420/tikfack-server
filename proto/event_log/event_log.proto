@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package eventlog;
+
+option go_package = "github.com/tikfack/server/gen/event_log;event_log";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// EventLogService defines RPCs for recording event logs.
+service EventLogService {
+  // Record a single event.
+  rpc Record (RecordRequest) returns (RecordResponse);
+
+  // Record a batch of events.
+  rpc RecordBatch (RecordBatchRequest) returns (RecordResponse);
+}
+
+// Event represents a single user action or playback event.
+message Event {
+  string id = 1;                              // Unique backend-generated ID
+  string user_id = 2;                         // Keycloak user sub (UUID)
+  string video_dmm_id = 3;                   // DMM video identifier
+  repeated string actress_ids = 4;
+  repeated string director_ids = 5;
+  repeated string genre_ids = 6;
+  repeated string maker_ids = 7;
+  repeated string series_ids = 8;
+  string session_id = 9;                      // Frontend-generated session ID
+  string event_type = 10;                      // start/pause/skip/complete/like/share
+  google.protobuf.Timestamp event_time = 11;   // Timestamp of the event
+  google.protobuf.Struct props = 12;           // Arbitrary JSON properties (position, duration, etc.)
+}
+
+// RecordRequest carries a single Event.
+message RecordRequest {
+  Event event = 1;
+}
+
+// RecordBatchRequest carries multiple Events.
+message RecordBatchRequest {
+  repeated Event events = 1;
+}
+
+// RecordResponse is returned after processing Record or RecordBatch.
+message RecordResponse {
+  // Empty for now; can include status or error details later.
+}

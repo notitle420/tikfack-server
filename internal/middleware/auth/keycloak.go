@@ -10,8 +10,15 @@ import (
 )
 
 // CallKeycloakPermissionAPI calls UMA endpoint to check if userToken is allowed to access resourceName.
-func CallKeycloakPermissionAPI(
+// Doer abstracts HTTP client for testing
+type Doer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// CallKeycloakPermissionAPIWithClient is a testable version that accepts an HTTP client interface
+func CallKeycloakPermissionAPIWithClient(
 	ctx context.Context,
+	httpClient Doer,
 	tokenEndpoint, audience, userToken, resourceName string,
 ) error {
 
@@ -28,7 +35,7 @@ func CallKeycloakPermissionAPI(
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Authorization", "Bearer "+userToken)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -43,4 +50,11 @@ func CallKeycloakPermissionAPI(
 	}
 
 	return errors.New("unexpected status from keycloak: " + resp.Status)
+}
+
+func CallKeycloakPermissionAPI(
+	ctx context.Context,
+	tokenEndpoint, audience, userToken, resourceName string,
+) error {
+	return CallKeycloakPermissionAPIWithClient(ctx, http.DefaultClient, tokenEndpoint, audience, userToken, resourceName)
 }

@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  tikfack-server:
+    build: .
+    ports:
+      - "50051:50051"
+    env_file:
+      - docker.env
+    networks:
+      - backend            # ← external 参照
+
+networks:
+  backend:
+    external: true
+    name: backend

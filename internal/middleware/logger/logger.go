@@ -8,6 +8,8 @@ import (
 )
 
 // UserIDFromContext は ctx から "sub" (ユーザーID) を取り出す
+<<<<<<< HEAD
+=======
 func UserIDFromContext(ctx context.Context) string {
     v := ctx.Value(ctxkeys.SubKey)
     if userID, ok := v.(string); ok {
@@ -27,16 +29,20 @@ func TraceIDFromContext(ctx context.Context) string {
 func TokenIDFromContext(ctx context.Context) string {
     v := ctx.Value(ctxkeys.TokenKey)
     if TokenKey, ok := v.(string); ok {
-        return TokenKey[0:10]
+        if len(TokenKey) >= 10 {
+            return TokenKey[0:10]
+        }
+        return ""
     }
     return ""
 }
+>>>>>>> dev
 
 // LoggerWithCtx は slog.Default() に ctx から取得したユーザーIDやトレースIDを付与して返す
 func LoggerWithCtx(ctx context.Context) *slog.Logger {
     return slog.Default().With(
-        slog.String("user_id",  UserIDFromContext(ctx)),
-        slog.String("trace_id", TraceIDFromContext(ctx)),
-        slog.String("token_id", TokenIDFromContext(ctx)),
+        slog.String("user_id",  ctxkeys.UserIDFromContext(ctx)),
+        slog.String("trace_id", ctxkeys.TraceIDFromContext(ctx)),
+        slog.String("token_id", ctxkeys.TokenIDFromContext(ctx)),
     )
 }

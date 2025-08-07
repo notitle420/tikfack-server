@@ -10,7 +10,8 @@ import (
 	"github.com/joho/godotenv"
 	gocloak "github.com/mviniciusgc/gocloak/v13"
 	"github.com/rs/cors"
-	connecthandler "github.com/tikfack/server/internal/infrastructure/connect"
+	eventLogHandler "github.com/tikfack/server/internal/infrastructure/connect/event_log"
+	videoHandler "github.com/tikfack/server/internal/infrastructure/connect/video"
 	auth "github.com/tikfack/server/internal/middleware/auth"
 	"github.com/tikfack/server/internal/middleware/logger"
 )
@@ -31,6 +32,7 @@ func main() {
 		port = "50051"
 	}
 
+	keycloakBaseURL := os.Getenv("KEYCLOAK_BASE_URL")
 	issuerURL := os.Getenv("ISSUER_URL")
 	clientID := os.Getenv("CLIENT_ID")
 	realm := os.Getenv("KEYCLOAK_REALM")
@@ -39,7 +41,7 @@ func main() {
 	slog.Info("issuerURL", "issuerURL", issuerURL)
 	slog.Info("clientID", "clientID", clientID)
 
-	gocloakClient := gocloak.NewClient("http://localhost:8080")
+	gocloakClient := gocloak.NewClient(keycloakBaseURL)
 
 	//ユーザーIDを取得するためにOIDCを使用
 	ctx := context.Background()
@@ -49,6 +51,8 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("OIDC verifier initialized", "verifier", verifier)
+
+	mux := http.NewServeMux()
 
 	introspectionInterceptor := auth.IntrospectionInterceptor(
 		verifier,
@@ -64,15 +68,23 @@ func main() {
 		auth.CheckPermissionFunc,
 	)
 
-	videoHandler := connecthandler.NewVideoServiceHandler(
+	videoHandler := videoHandler.NewVideoServiceHandler(
 		connect.WithInterceptors(
 			introspectionInterceptor,
 			logger.LoggingInterceptor(),
 			permInterceptor,
 		))
-	mux := http.NewServeMux()
-	pattern, handler := videoHandler.GetHandler()
-	mux.Handle(pattern, handler)
+	vpattern, vhandler := videoHandler.GetHandler()
+	mux.Handle(vpattern, vhandler)
+
+	eventLogHandler := eventLogHandler.NewEventLogServiceHandler(
+		connect.WithInterceptors(
+			logger.LoggingInterceptor(),
+		),
+	)
+	
+	epattern, ehandler := eventLogHandler.GetHandler()
+	mux.Handle(epattern, ehandler)
 
 	// ミドルウェアチェイン
 	loggedHandler := loggingMiddleware(mux)

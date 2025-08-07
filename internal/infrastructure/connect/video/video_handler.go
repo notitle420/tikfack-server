@@ -15,9 +15,9 @@ import (
 
 	video "github.com/tikfack/server/internal/application/usecase/video"
 	"github.com/tikfack/server/internal/domain/entity"
-	"github.com/tikfack/server/internal/infrastructure/repository"
+	repository "github.com/tikfack/server/internal/infrastructure/repository/video"
 	"github.com/tikfack/server/internal/infrastructure/util"
-	"github.com/tikfack/server/internal/middleware/logger"
+	"github.com/tikfack/server/internal/middleware/ctxkeys"
 )
 
 // videoServiceServer は Connect のサーバー実装です。
@@ -61,9 +61,9 @@ func (s *videoServiceServer) GetHandler() (string, http.Handler) {
 
 func (s *videoServiceServer) loggerWithCtx(ctx context.Context) *slog.Logger {
     return s.logger.With(
-        slog.String("user_id",  logger.UserIDFromContext(ctx)),   // 例: いずれかの場所で ctx に "sub" をセット済み
-        slog.String("trace_id", logger.TraceIDFromContext(ctx)),  // 例: Interceptor などで ctx にセット済み
-		slog.String("token_id", logger.TokenIDFromContext(ctx)),
+        slog.String("user_id",  ctxkeys.UserIDFromContext(ctx)),   // 例: いずれかの場所で ctx に "sub" をセット済み
+        slog.String("trace_id", ctxkeys.TraceIDFromContext(ctx)),  // 例: Interceptor などで ctx にセット済み
+		slog.String("token_id", ctxkeys.TokenIDFromContext(ctx)),
 	)
 }
 
