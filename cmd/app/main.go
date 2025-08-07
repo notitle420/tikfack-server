@@ -32,6 +32,7 @@ func main() {
 		port = "50051"
 	}
 
+	keycloakBaseURL := os.Getenv("KEYCLOAK_BASE_URL")
 	issuerURL := os.Getenv("ISSUER_URL")
 	clientID := os.Getenv("CLIENT_ID")
 	realm := os.Getenv("KEYCLOAK_REALM")
@@ -40,7 +41,7 @@ func main() {
 	slog.Info("issuerURL", "issuerURL", issuerURL)
 	slog.Info("clientID", "clientID", clientID)
 
-	gocloakClient := gocloak.NewClient("http://localhost:8080")
+	gocloakClient := gocloak.NewClient(keycloakBaseURL)
 
 	//ユーザーIDを取得するためにOIDCを使用
 	ctx := context.Background()
