@@ -6,9 +6,11 @@ services:
     ports:
       - "50051:50051"
     env_file:
-      - docker.env
+      - ./docker.env
     networks:
       - backend            # ← external 参照
+    extra_hosts:
+      - "localhost:host-gateway"
 
 networks:
   backend:

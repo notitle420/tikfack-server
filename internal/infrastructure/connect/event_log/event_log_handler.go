@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"strings"
 
 	"log/slog"
 
@@ -22,17 +24,32 @@ import (
 // eventLogServiceServer implements the Connect-Go gRPC service for event logs.
 type eventLogServiceServer struct {
 	eventLogUsecase eventloguc.EventLogUsecase
-	logger           *slog.Logger
-	handlerOpts      []connect.HandlerOption
+	logger          *slog.Logger
+	handlerOpts     []connect.HandlerOption
 }
 
 // NewEventLogServiceHandler initializes the handler with default Kafka repository implementation.
 func NewEventLogServiceHandler(opts ...connect.HandlerOption) *eventLogServiceServer {
+	var brokers []string
+	raw := strings.TrimSpace(os.Getenv("KAFKA_BROKER_ADDRESSES"))
+	if raw != "" {
+		for _, addr := range strings.Split(raw, ",") {
+			addr = strings.TrimSpace(addr)
+			if addr != "" {
+				brokers = append(brokers, addr)
+			}
+		}
+	}
+	if len(brokers) == 0 {
+		brokers = []string{"localhost:9094"}
+	}
+
 	// Initialize Kafka writer
 	writer := kafka.NewWriter(kafka.WriterConfig{
-		Brokers: []string{"localhost:9094"},
+		Brokers: brokers,
 		Topic:   "event-logs",
 	})
+	slog.Info("Kafka writer initialized", slog.Any("brokers", brokers))
 	// Initialize repository implementing domain EventLogRepository
 	repository := repo.NewKafkaEventLogRepository(writer)
 	// Initialize usecase
@@ -77,19 +94,19 @@ func (s *eventLogServiceServer) Record(
 	}
 
 	domainEvt := &entity.EventLog{
-		EventLogID: uuid.New().String(),
-		TraceID:    ctxkeys.TraceIDFromContext(ctx),
-		UserID:     e.UserId,
-		SessionID:  e.SessionId,
-		VideoDmmID: e.VideoDmmId,
-		ActressIDs: e.ActressIds,
+		EventLogID:  uuid.New().String(),
+		TraceID:     ctxkeys.TraceIDFromContext(ctx),
+		UserID:      e.UserId,
+		SessionID:   e.SessionId,
+		VideoDmmID:  e.VideoDmmId,
+		ActressIDs:  e.ActressIds,
 		DirectorIDs: e.DirectorIds,
-		GenreIDs: e.GenreIds,
-		MakerIDs: e.MakerIds,
-		SeriesIDs: e.SeriesIds,
-		EventType:  e.EventType,
-		EventTime:  e.EventTime.AsTime(),
-		Props:      rawProps,
+		GenreIDs:    e.GenreIds,
+		MakerIDs:    e.MakerIds,
+		SeriesIDs:   e.SeriesIds,
+		EventType:   e.EventType,
+		EventTime:   e.EventTime.AsTime(),
+		Props:       rawProps,
 	}
 	// Delegate to usecase
 	if err := s.eventLogUsecase.Record(ctx, domainEvt); err != nil {
@@ -113,19 +130,19 @@ func (s *eventLogServiceServer) RecordBatch(
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		events[i] = &entity.EventLog{
-			EventLogID: uuid.New().String(),
-			TraceID:    ctxkeys.TraceIDFromContext(ctx),
-			UserID:     e.UserId,
-			SessionID:  e.SessionId,
-			VideoDmmID: e.VideoDmmId,
-			ActressIDs: e.ActressIds,
+			EventLogID:  uuid.New().String(),
+			TraceID:     ctxkeys.TraceIDFromContext(ctx),
+			UserID:      e.UserId,
+			SessionID:   e.SessionId,
+			VideoDmmID:  e.VideoDmmId,
+			ActressIDs:  e.ActressIds,
 			DirectorIDs: e.DirectorIds,
-			GenreIDs: e.GenreIds,
-			MakerIDs: e.MakerIds,
-			SeriesIDs: e.SeriesIds,
-			EventType:  e.EventType,
-			EventTime:  e.EventTime.AsTime(),
-			Props:      rawProps,
+			GenreIDs:    e.GenreIds,
+			MakerIDs:    e.MakerIds,
+			SeriesIDs:   e.SeriesIds,
+			EventType:   e.EventType,
+			EventTime:   e.EventTime.AsTime(),
+			Props:       rawProps,
 		}
 	}
 	// Delegate to usecase

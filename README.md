@@ -43,11 +43,12 @@ PORT=50051 #50051でOK
 BASE_URL=https://api.dmm.com/affiliate/ #DMMのベースURL
 HITS=10 # オプション: DMM API から取得する動画の数
 LOG_LEVEL=debug #ログレベル
-ISSUER_URL= #keycloakのベースURL http://localhost:8080/realms/myrealm
+ISSUER_URL= #keycloakのベースURL http://localhost:18080/realms/myrealm
 CLIENT_ID= #keycloackのバックエンド用のクライアントID
 KEYCLOAK_REALM= #keycloackのREALM 
 KEYCLOAK_BACKEND_CLIENT_SECRET= #keycloackのバックエンド用のクライアントID keycloak → ckuebts → backuendclients → credentials
-KEYCLOAK_BASE_URL= #keycloakのベースURL：例 http://localhost:8080
+KEYCLOAK_BASE_URL= #keycloakのベースURL：例 http://localhost:18080
+KAFKA_BROKER_ADDRESSES=localhost:9094 # カンマ区切りでKafkaブローカーのホスト:ポートを設定（未設定時はlocalhost:9094）
 ```
 
 ## Protocol Buffers のセットアップ
