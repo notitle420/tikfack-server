@@ -2,6 +2,7 @@ package connect
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -60,9 +61,9 @@ func (s *videoServiceServer) GetHandler() (string, http.Handler) {
 }
 
 func (s *videoServiceServer) loggerWithCtx(ctx context.Context) *slog.Logger {
-    return s.logger.With(
-        slog.String("user_id",  ctxkeys.UserIDFromContext(ctx)),   // 例: いずれかの場所で ctx に "sub" をセット済み
-        slog.String("trace_id", ctxkeys.TraceIDFromContext(ctx)),  // 例: Interceptor などで ctx にセット済み
+	return s.logger.With(
+		slog.String("user_id", ctxkeys.UserIDFromContext(ctx)),   // 例: いずれかの場所で ctx に "sub" をセット済み
+		slog.String("trace_id", ctxkeys.TraceIDFromContext(ctx)), // 例: Interceptor などで ctx にセット済み
 		slog.String("token_id", ctxkeys.TokenIDFromContext(ctx)),
 	)
 }
@@ -75,57 +76,39 @@ func (s *videoServiceServer) GetVideosByDate(ctx context.Context, req *connect.R
 		"hits", req.Msg.Hits,
 		"offset", req.Msg.Offset)
 
-	var targetDate time.Time
-	if req.Msg.Date == "" {
-		targetDate = time.Now()
-	} else {
-		t, err := time.Parse("2006-01-02", req.Msg.Date)
-		if err != nil {
-			s.logger.Error("不正な日付形式", "date", req.Msg.Date, "error", err)
+	result, err := s.videoUsecase.GetVideosByDate(ctx, video.GetVideosByDateInput{
+		Date:   req.Msg.Date,
+		Hits:   req.Msg.Hits,
+		Offset: req.Msg.Offset,
+	})
+	if err != nil {
+		if errors.Is(err, video.ErrInvalidDateFormat) {
+			logger.Warn("invalid date supplied", "date", req.Msg.Date, "error", err)
 			return nil, status.Error(codes.InvalidArgument, "不正な日付形式です")
 		}
-		targetDate = t
-	}
-
-	// デフォルト値の設定
-	hits := req.Msg.Hits
-	if hits > 100 {
-		hits = 100 // 最大値
-	}
-
-	offset := req.Msg.Offset
-	if offset < 0 {
-		offset = 0 // 最小値
-	}
-	if offset > 50000 {
-		offset = 50000 // 最大値
-	}
-
-	// ユースケースから動画リストを取得
-	videos, metadata, err := s.videoUsecase.GetVideosByDate(ctx, targetDate, hits, offset)
-	if err != nil {
 		logger.Error("動画の取得に失敗",
-			"date", targetDate.Format("2006-01-02"),
-			"hits", hits,
-			"offset", offset,
+			"date", req.Msg.Date,
+			"hits", req.Msg.Hits,
+			"offset", req.Msg.Offset,
 			"error", err)
 		return nil, status.Errorf(codes.Internal, "動画の取得に失敗しました: %v", err)
 	}
 
 	// ハンドラー層で各動画のURL検証を行う
-	for i := range videos {
-		directURL, err := util.GetValidVideoUrl(videos[i].DmmID)
+	for i := range result.Videos {
+		directURL, err := util.GetValidVideoUrl(result.Videos[i].DmmID)
 		if err == nil {
-			videos[i].DirectURL = directURL
+			result.Videos[i].DirectURL = directURL
 		}
 	}
 
-	pbVideos := convertVideosToPb(videos)
-	pbMetadata := convertToPbMetadata(metadata)
+	pbVideos := convertVideosToPb(result.Videos)
+	pbMetadata := convertToPbMetadata(result.Metadata)
 	logger.Debug("GetVideosByDate completed",
 		"count", len(pbVideos),
-		"hits", hits,
-		"offset", offset)
+		"hits", result.Hits,
+		"offset", result.Offset,
+		"targetDate", result.TargetDate.Format("2006-01-02"))
 	res := &pb.GetVideosByDateResponse{
 		Videos:   pbVideos,
 		Metadata: pbMetadata,
@@ -212,33 +195,21 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 		"hits", req.Msg.Hits,
 		"offset", req.Msg.Offset)
 
-	hits := req.Msg.Hits
-	if hits > 100 {
-		hits = 100 // 最大値
-	}
-
-	offset := req.Msg.Offset
-	if offset < 0 {
-		offset = 0 // 最小値
-	}
-	if offset > 50000 {
-		offset = 50000 // 最大値
-	}
-
-	videos, metadata, err := s.videoUsecase.GetVideosByID(ctx,
-		req.Msg.ActressId,
-		req.Msg.GenreId,
-		req.Msg.MakerId,
-		req.Msg.SeriesId,
-		req.Msg.DirectorId,
-		hits,
-		offset,
-		req.Msg.Sort,
-		req.Msg.GteDate,
-		req.Msg.LteDate,
-		req.Msg.Site,
-		req.Msg.Service,
-		req.Msg.Floor)
+	result, err := s.videoUsecase.GetVideosByID(ctx, video.GetVideosByIDInput{
+		ActressIDs:  req.Msg.ActressId,
+		GenreIDs:    req.Msg.GenreId,
+		MakerIDs:    req.Msg.MakerId,
+		SeriesIDs:   req.Msg.SeriesId,
+		DirectorIDs: req.Msg.DirectorId,
+		Hits:        req.Msg.Hits,
+		Offset:      req.Msg.Offset,
+		Sort:        req.Msg.Sort,
+		GteDate:     req.Msg.GteDate,
+		LteDate:     req.Msg.LteDate,
+		Site:        req.Msg.Site,
+		Service:     req.Msg.Service,
+		Floor:       req.Msg.Floor,
+	})
 
 	if err != nil {
 		logger.Error("動画の検索に失敗", "error", err)
@@ -246,15 +217,15 @@ func (s *videoServiceServer) GetVideosByID(ctx context.Context, req *connect.Req
 	}
 
 	// ハンドラー層で各動画のURL検証を行う
-	for i := range videos {
-		directURL, err := util.GetValidVideoUrl(videos[i].DmmID)
+	for i := range result.Videos {
+		directURL, err := util.GetValidVideoUrl(result.Videos[i].DmmID)
 		if err == nil {
-			videos[i].DirectURL = directURL
+			result.Videos[i].DirectURL = directURL
 		}
 	}
 
-	pbVideos := convertVideosToPb(videos)
-	pbMetadata := convertToPbMetadata(metadata)
+	pbVideos := convertVideosToPb(result.Videos)
+	pbMetadata := convertToPbMetadata(result.Metadata)
 	logger.Debug("GetVideosByID completed", "count", len(pbVideos))
 	return connect.NewResponse(&pb.GetVideosByIDResponse{
 		Videos:   pbVideos,
@@ -271,29 +242,17 @@ func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connec
 		"offset", req.Msg.Offset,
 		"sort", req.Msg.Sort)
 
-	hits := req.Msg.Hits
-	if hits > 100 {
-		hits = 100 // 最大値
-	}
-
-	offset := req.Msg.Offset
-	if offset < 0 {
-		offset = 0 // 最小値
-	}
-	if offset > 50000 {
-		offset = 50000 // 最大値
-	}
-
-	videos, metadata, err := s.videoUsecase.GetVideosByKeyword(ctx,
-		req.Msg.Keyword,
-		hits,
-		offset,
-		req.Msg.Sort,
-		req.Msg.GteDate,
-		req.Msg.LteDate,
-		req.Msg.Site,
-		req.Msg.Service,
-		req.Msg.Floor)
+	result, err := s.videoUsecase.GetVideosByKeyword(ctx, video.GetVideosByKeywordInput{
+		Keyword: req.Msg.Keyword,
+		Hits:    req.Msg.Hits,
+		Offset:  req.Msg.Offset,
+		Sort:    req.Msg.Sort,
+		GteDate: req.Msg.GteDate,
+		LteDate: req.Msg.LteDate,
+		Site:    req.Msg.Site,
+		Service: req.Msg.Service,
+		Floor:   req.Msg.Floor,
+	})
 
 	if err != nil {
 		logger.Error("動画の検索に失敗", "keyword", req.Msg.Keyword, "error", err)
@@ -301,15 +260,15 @@ func (s *videoServiceServer) GetVideosByKeyword(ctx context.Context, req *connec
 	}
 
 	// ハンドラー層で各動画のURL検証を行う
-	for i := range videos {
-		directURL, err := util.GetValidVideoUrl(videos[i].DmmID)
+	for i := range result.Videos {
+		directURL, err := util.GetValidVideoUrl(result.Videos[i].DmmID)
 		if err == nil {
-			videos[i].DirectURL = directURL
+			result.Videos[i].DirectURL = directURL
 		}
 	}
 
-	pbVideos := convertVideosToPb(videos)
-	pbMetadata := convertToPbMetadata(metadata)
+	pbVideos := convertVideosToPb(result.Videos)
+	pbMetadata := convertToPbMetadata(result.Metadata)
 	logger.Debug("GetVideosByKeyword completed", "count", len(pbVideos))
 	return connect.NewResponse(&pb.GetVideosByKeywordResponse{
 		Videos:   pbVideos,

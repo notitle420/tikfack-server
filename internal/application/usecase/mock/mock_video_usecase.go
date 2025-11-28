@@ -12,8 +12,8 @@ package mock
 import (
 	context "context"
 	reflect "reflect"
-	time "time"
 
+	usecase "github.com/tikfack/server/internal/application/usecase/video"
 	entity "github.com/tikfack/server/internal/domain/entity"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -58,51 +58,48 @@ func (mr *MockVideoUsecaseMockRecorder) GetVideoById(ctx, dmmId any) *gomock.Cal
 }
 
 // GetVideosByDate mocks base method.
-func (m *MockVideoUsecase) GetVideosByDate(ctx context.Context, targetDate time.Time, hits, offset int32) ([]entity.Video, *entity.SearchMetadata, error) {
+func (m *MockVideoUsecase) GetVideosByDate(ctx context.Context, input usecase.GetVideosByDateInput) (*usecase.GetVideosByDateOutput, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVideosByDate", ctx, targetDate, hits, offset)
-	ret0, _ := ret[0].([]entity.Video)
-	ret1, _ := ret[1].(*entity.SearchMetadata)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret := m.ctrl.Call(m, "GetVideosByDate", ctx, input)
+	ret0, _ := ret[0].(*usecase.GetVideosByDateOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetVideosByDate indicates an expected call of GetVideosByDate.
-func (mr *MockVideoUsecaseMockRecorder) GetVideosByDate(ctx, targetDate, hits, offset any) *gomock.Call {
+func (mr *MockVideoUsecaseMockRecorder) GetVideosByDate(ctx, input any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByDate", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByDate), ctx, targetDate, hits, offset)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByDate", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByDate), ctx, input)
 }
 
 // GetVideosByID mocks base method.
-func (m *MockVideoUsecase) GetVideosByID(ctx context.Context, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs []string, hits, offset int32, sort, gteDate, lteDate, site, service, floor string) ([]entity.Video, *entity.SearchMetadata, error) {
+func (m *MockVideoUsecase) GetVideosByID(ctx context.Context, input usecase.GetVideosByIDInput) (*usecase.GetVideosOutput, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVideosByID", ctx, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs, hits, offset, sort, gteDate, lteDate, site, service, floor)
-	ret0, _ := ret[0].([]entity.Video)
-	ret1, _ := ret[1].(*entity.SearchMetadata)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret := m.ctrl.Call(m, "GetVideosByID", ctx, input)
+	ret0, _ := ret[0].(*usecase.GetVideosOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetVideosByID indicates an expected call of GetVideosByID.
-func (mr *MockVideoUsecaseMockRecorder) GetVideosByID(ctx, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs, hits, offset, sort, gteDate, lteDate, site, service, floor any) *gomock.Call {
+func (mr *MockVideoUsecaseMockRecorder) GetVideosByID(ctx, input any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByID", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByID), ctx, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs, hits, offset, sort, gteDate, lteDate, site, service, floor)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByID", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByID), ctx, input)
 }
 
 // GetVideosByKeyword mocks base method.
-func (m *MockVideoUsecase) GetVideosByKeyword(ctx context.Context, keyword string, hits, offset int32, sort, gteDate, lteDate, site, service, floor string) ([]entity.Video, *entity.SearchMetadata, error) {
+func (m *MockVideoUsecase) GetVideosByKeyword(ctx context.Context, input usecase.GetVideosByKeywordInput) (*usecase.GetVideosOutput, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVideosByKeyword", ctx, keyword, hits, offset, sort, gteDate, lteDate, site, service, floor)
-	ret0, _ := ret[0].([]entity.Video)
-	ret1, _ := ret[1].(*entity.SearchMetadata)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret := m.ctrl.Call(m, "GetVideosByKeyword", ctx, input)
+	ret0, _ := ret[0].(*usecase.GetVideosOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetVideosByKeyword indicates an expected call of GetVideosByKeyword.
-func (mr *MockVideoUsecaseMockRecorder) GetVideosByKeyword(ctx, keyword, hits, offset, sort, gteDate, lteDate, site, service, floor any) *gomock.Call {
+func (mr *MockVideoUsecaseMockRecorder) GetVideosByKeyword(ctx, input any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByKeyword", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByKeyword), ctx, keyword, hits, offset, sort, gteDate, lteDate, site, service, floor)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByKeyword", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByKeyword), ctx, input)
 }
 
 // SearchVideos mocks base method.

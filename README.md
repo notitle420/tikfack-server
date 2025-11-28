@@ -28,7 +28,7 @@ TikFack サーバーは、動画配信のバックエンドを担当する Go �
 
 ### 外部サービス
 - **DMM API アカウント**: API ID とアフィリエイト ID が必要
-- **認証プロバイダー**: Keycloak または OIDC 対応プロバイダー（オプション）
+- **認証プロバイダー**: Keycloak
 
 ## 環境変数
 
@@ -86,7 +86,7 @@ buf generate
 go run cmd/app/main.go
 ```
 
-サーバーは `http://localhost:8080` で動作し、gRPCは `localhost:50051` でアクセス可能です。
+gRPCは `localhost:50051` でアクセス可能です。
 
 ### Docker を使った実行
 
@@ -95,7 +95,7 @@ go run cmd/app/main.go
 docker build -t tikfack-server .
 
 # コンテナの実行
-docker run -p 8080:8080 -p 50051:50051 --env-file .env tikfack-server
+docker run -p 50051:50051 --env-file .env tikfack-server
 ```
 
 ## トラブルシューティング
@@ -189,64 +189,7 @@ tikfack-server/
 └── README.md            # このファイル
 ```
 
-<<<<<<< HEAD
-# Curl テスト
-EventLog/Record
-```
-    curl -X POST http://localhost:50051/eventlog.EventLogService/Record \
-  -H "Content-Type: application/json" \
-  -d '{
-    "event": {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "userId": "123e4567-e89b-12d3-a456-426614174000",
-      "videoDmmId": "abc123",
-      "sessionId": "session-xyz",
-      "eventType": "start",
-      "eventTime": "2025-05-26T10:00:00Z",
-      "props": { "position": 0, "deviceType": "mobile" }
-    }
-  }'
-```
-
-EventLog/RecordBatch
-```
-curl -X POST http://localhost:50051/eventlog.EventLogService/RecordBatch \
-  -H "Content-Type: application/json" \
-  -d '{
-    "events": [
-      {
-        "id":          "550e8400-e29b-41d4-a716-446655440000",
-        "userId":      "123e4567-e89b-12d3-a456-426614174000",
-        "videoDmmId":  "abc123",
-        "sessionId":   "session-xyz",
-        "eventType":   "start",
-        "eventTime":   "2025-05-26T10:00:00Z",
-        "props": {
-          "position": 0,
-          "deviceType": "mobile"
-        }
-      },
-      {
-        "id":          "550e8400-e29b-41d4-a716-446655440001",
-        "userId":      "123e4567-e89b-12d3-a456-426614174000",
-        "videoDmmId":  "abc123",
-        "sessionId":   "session-xyz",
-        "eventType":   "complete",
-        "eventTime":   "2025-05-26T10:05:00Z",
-        "props": {
-          "position": 300,
-          "percent": 1.0
-        }
-      }
-    ]
-  }'
-
-```
-
-## ライセンス
-=======
 ### アーキテクチャレイヤー
->>>>>>> dev
 
 - **Application Layer**: ビジネスロジックとユースケース
 - **Domain Layer**: ドメインエンティティとビジネスルール
