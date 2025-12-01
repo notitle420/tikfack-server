@@ -12,9 +12,9 @@ package mock
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
-	usecase "github.com/tikfack/server/internal/application/usecase/video"
-	entity "github.com/tikfack/server/internal/domain/entity"
+	model "github.com/tikfack/server/internal/application/model"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -43,10 +43,10 @@ func (m *MockVideoUsecase) EXPECT() *MockVideoUsecaseMockRecorder {
 }
 
 // GetVideoById mocks base method.
-func (m *MockVideoUsecase) GetVideoById(ctx context.Context, dmmId string) (*entity.Video, error) {
+func (m *MockVideoUsecase) GetVideoById(ctx context.Context, dmmId string) (*model.Video, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVideoById", ctx, dmmId)
-	ret0, _ := ret[0].(*entity.Video)
+	ret0, _ := ret[0].(*model.Video)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -58,56 +58,59 @@ func (mr *MockVideoUsecaseMockRecorder) GetVideoById(ctx, dmmId any) *gomock.Cal
 }
 
 // GetVideosByDate mocks base method.
-func (m *MockVideoUsecase) GetVideosByDate(ctx context.Context, input usecase.GetVideosByDateInput) (*usecase.GetVideosByDateOutput, error) {
+func (m *MockVideoUsecase) GetVideosByDate(ctx context.Context, targetDate time.Time, hits, offset int32) ([]model.Video, *model.SearchMetadata, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVideosByDate", ctx, input)
-	ret0, _ := ret[0].(*usecase.GetVideosByDateOutput)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "GetVideosByDate", ctx, targetDate, hits, offset)
+	ret0, _ := ret[0].([]model.Video)
+	ret1, _ := ret[1].(*model.SearchMetadata)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetVideosByDate indicates an expected call of GetVideosByDate.
-func (mr *MockVideoUsecaseMockRecorder) GetVideosByDate(ctx, input any) *gomock.Call {
+func (mr *MockVideoUsecaseMockRecorder) GetVideosByDate(ctx, targetDate, hits, offset any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByDate", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByDate), ctx, input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByDate", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByDate), ctx, targetDate, hits, offset)
 }
 
 // GetVideosByID mocks base method.
-func (m *MockVideoUsecase) GetVideosByID(ctx context.Context, input usecase.GetVideosByIDInput) (*usecase.GetVideosOutput, error) {
+func (m *MockVideoUsecase) GetVideosByID(ctx context.Context, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs []string, hits, offset int32, sort, gteDate, lteDate, site, service, floor string) ([]model.Video, *model.SearchMetadata, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVideosByID", ctx, input)
-	ret0, _ := ret[0].(*usecase.GetVideosOutput)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "GetVideosByID", ctx, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs, hits, offset, sort, gteDate, lteDate, site, service, floor)
+	ret0, _ := ret[0].([]model.Video)
+	ret1, _ := ret[1].(*model.SearchMetadata)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetVideosByID indicates an expected call of GetVideosByID.
-func (mr *MockVideoUsecaseMockRecorder) GetVideosByID(ctx, input any) *gomock.Call {
+func (mr *MockVideoUsecaseMockRecorder) GetVideosByID(ctx, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs, hits, offset, sort, gteDate, lteDate, site, service, floor any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByID", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByID), ctx, input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByID", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByID), ctx, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs, hits, offset, sort, gteDate, lteDate, site, service, floor)
 }
 
 // GetVideosByKeyword mocks base method.
-func (m *MockVideoUsecase) GetVideosByKeyword(ctx context.Context, input usecase.GetVideosByKeywordInput) (*usecase.GetVideosOutput, error) {
+func (m *MockVideoUsecase) GetVideosByKeyword(ctx context.Context, keyword string, hits, offset int32, sort, gteDate, lteDate, site, service, floor string) ([]model.Video, *model.SearchMetadata, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVideosByKeyword", ctx, input)
-	ret0, _ := ret[0].(*usecase.GetVideosOutput)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "GetVideosByKeyword", ctx, keyword, hits, offset, sort, gteDate, lteDate, site, service, floor)
+	ret0, _ := ret[0].([]model.Video)
+	ret1, _ := ret[1].(*model.SearchMetadata)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetVideosByKeyword indicates an expected call of GetVideosByKeyword.
-func (mr *MockVideoUsecaseMockRecorder) GetVideosByKeyword(ctx, input any) *gomock.Call {
+func (mr *MockVideoUsecaseMockRecorder) GetVideosByKeyword(ctx, keyword, hits, offset, sort, gteDate, lteDate, site, service, floor any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByKeyword", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByKeyword), ctx, input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVideosByKeyword", reflect.TypeOf((*MockVideoUsecase)(nil).GetVideosByKeyword), ctx, keyword, hits, offset, sort, gteDate, lteDate, site, service, floor)
 }
 
 // SearchVideos mocks base method.
-func (m *MockVideoUsecase) SearchVideos(ctx context.Context, keyword, actressID, genreID, makerID, seriesID, directorID string) ([]entity.Video, *entity.SearchMetadata, error) {
+func (m *MockVideoUsecase) SearchVideos(ctx context.Context, keyword, actressID, genreID, makerID, seriesID, directorID string) ([]model.Video, *model.SearchMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchVideos", ctx, keyword, actressID, genreID, makerID, seriesID, directorID)
-	ret0, _ := ret[0].([]entity.Video)
-	ret1, _ := ret[1].(*entity.SearchMetadata)
+	ret0, _ := ret[0].([]model.Video)
+	ret1, _ := ret[1].(*model.SearchMetadata)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }

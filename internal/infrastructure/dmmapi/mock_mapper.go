@@ -12,7 +12,7 @@ package dmmapi
 import (
 	reflect "reflect"
 
-	entity "github.com/tikfack/server/internal/domain/entity"
+	model "github.com/tikfack/server/internal/application/model"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,11 +41,11 @@ func (m *MockMapperInterface) EXPECT() *MockMapperInterfaceMockRecorder {
 }
 
 // ConvertEntityFromDMM mocks base method.
-func (m *MockMapperInterface) ConvertEntityFromDMM(arg0 Result) ([]entity.Video, *entity.SearchMetadata) {
+func (m *MockMapperInterface) ConvertEntityFromDMM(arg0 Result) ([]model.Video, *model.SearchMetadata) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConvertEntityFromDMM", arg0)
-	ret0, _ := ret[0].([]entity.Video)
-	ret1, _ := ret[1].(*entity.SearchMetadata)
+	ret0, _ := ret[0].([]model.Video)
+	ret1, _ := ret[1].(*model.SearchMetadata)
 	return ret0, ret1
 }
 

@@ -15,7 +15,7 @@ import (
 	"github.com/rs/cors"
 	pb "github.com/tikfack/server/gen/video"
 	videopbconnect "github.com/tikfack/server/gen/video/videoconnect"
-	mockpb "github.com/tikfack/server/internal/infrastructure/connect/mock"
+	mockpb "github.com/tikfack/server/internal/presentation/connect/mock"
 )
 
 func main() {

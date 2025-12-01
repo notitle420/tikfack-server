@@ -4,14 +4,12 @@ package usecase
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/tikfack/server/internal/domain/entity"
-	"github.com/tikfack/server/internal/domain/repository"
-	"github.com/tikfack/server/internal/middleware/ctxkeys"
+	"github.com/tikfack/server/internal/application/model"
+	"github.com/tikfack/server/internal/application/port"
+	"github.com/tikfack/server/internal/middleware/logger"
 )
 
 const (
@@ -19,143 +17,73 @@ const (
 	maxOffset int32 = 50000
 )
 
-var (
-	// ErrInvalidDateFormat は入力の日付文字列が不正な場合に返される
-	ErrInvalidDateFormat = errors.New("invalid date format")
-)
-
-// GetVideosByDateInput は日付検索の入力をまとめた値オブジェクト
-type GetVideosByDateInput struct {
-	Date   string
-	Hits   int32
-	Offset int32
-}
-
-// GetVideosByIDInput は ID 条件検索の入力値を表す
-type GetVideosByIDInput struct {
-	ActressIDs  []string
-	GenreIDs    []string
-	MakerIDs    []string
-	SeriesIDs   []string
-	DirectorIDs []string
-	Hits        int32
-	Offset      int32
-	Sort        string
-	GteDate     string
-	LteDate     string
-	Site        string
-	Service     string
-	Floor       string
-}
-
-// GetVideosByKeywordInput はキーワード検索の入力値を表す
-type GetVideosByKeywordInput struct {
-	Keyword string
-	Hits    int32
-	Offset  int32
-	Sort    string
-	GteDate string
-	LteDate string
-	Site    string
-	Service string
-	Floor   string
-}
-
-// GetVideosByDateOutput は日付検索の結果
-type GetVideosByDateOutput struct {
-	Videos     []entity.Video
-	Metadata   *entity.SearchMetadata
-	TargetDate time.Time
-	Hits       int32
-	Offset     int32
-}
-
-// GetVideosOutput は ID / Keyword 検索の結果
-type GetVideosOutput struct {
-	Videos   []entity.Video
-	Metadata *entity.SearchMetadata
-	Hits     int32
-	Offset   int32
-}
-
 // VideoUsecase は動画関連のユースケースを定義するインターフェイス
+// DMM のような外部カタログに依存するアクセスをアプリケーション層で
+// 一元的に扱うためのポートを切っている。
 type VideoUsecase interface {
-	GetVideosByDate(ctx context.Context, input GetVideosByDateInput) (*GetVideosByDateOutput, error)
-	GetVideoById(ctx context.Context, dmmId string) (*entity.Video, error)
-	SearchVideos(ctx context.Context, keyword, actressID, genreID, makerID, seriesID, directorID string) ([]entity.Video, *entity.SearchMetadata, error)
-	GetVideosByID(ctx context.Context, input GetVideosByIDInput) (*GetVideosOutput, error)
-	GetVideosByKeyword(ctx context.Context, input GetVideosByKeywordInput) (*GetVideosOutput, error)
+	// GetVideosByDate は指定日付の動画一覧を取得する
+	GetVideosByDate(ctx context.Context, targetDate time.Time, hits, offset int32) ([]model.Video, *model.SearchMetadata, error)
+
+	// GetVideoById は指定されたDMMビデオIDの動画を取得する
+	GetVideoById(ctx context.Context, dmmId string) (*model.Video, error)
+
+	// SearchVideos はキーワードやIDを使って動画を検索する
+	SearchVideos(ctx context.Context, keyword, actressID, genreID, makerID, seriesID, directorID string) ([]model.Video, *model.SearchMetadata, error)
+
+	// GetVideosByID は複数ID条件で動画を検索する
+	GetVideosByID(ctx context.Context, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs []string, hits, offset int32, sort, gteDate, lteDate, site, service, floor string) ([]model.Video, *model.SearchMetadata, error)
+
+	// GetVideosByKeyword はキーワード検索を行う
+	GetVideosByKeyword(ctx context.Context, keyword string, hits, offset int32, sort, gteDate, lteDate, site, service, floor string) ([]model.Video, *model.SearchMetadata, error)
 }
 
 // videoUsecase は VideoUsecase の実装
 type videoUsecase struct {
-	videoRepo repository.VideoRepository
-	logger    *slog.Logger
-	now       func() time.Time
+	catalog port.VideoCatalog
+	logger  *slog.Logger
 }
 
-// NewVideoUsecase は依存する VideoRepository を受け取り VideoUsecase を返す
-func NewVideoUsecase(repo repository.VideoRepository) VideoUsecase {
-	return NewVideoUsecaseWithDeps(repo, nil)
-}
-
-// NewVideoUsecaseWithDeps はテスト用に現在時刻関数を注入可能なコンストラクタ
-func NewVideoUsecaseWithDeps(repo repository.VideoRepository, now func() time.Time) VideoUsecase {
-	if now == nil {
-		now = time.Now
+// NewVideoUsecase は VideoCatalog ポートを受け取り VideoUsecase を返す
+func NewVideoUsecase(catalog port.VideoCatalog) VideoUsecase {
+	if catalog == nil {
+		panic("video catalog must be provided")
 	}
 	return &videoUsecase{
-		videoRepo: repo,
-		logger:    slog.Default().With(slog.String("component", "video_usecase")),
-		now:       now,
+		catalog: catalog,
+		logger:  slog.Default().With(slog.String("component", "video_usecase")),
 	}
 }
 
 func (u *videoUsecase) loggerWithCtx(ctx context.Context) *slog.Logger {
 	return u.logger.With(
-		slog.String("user_id", ctxkeys.UserIDFromContext(ctx)),
-		slog.String("trace_id", ctxkeys.TraceIDFromContext(ctx)),
-		slog.String("token_id", ctxkeys.TokenIDFromContext(ctx)),
+		slog.String("user_id", logger.UserIDFromContext(ctx)),
+		slog.String("trace_id", logger.TraceIDFromContext(ctx)),
+		slog.String("token_id", logger.TokenIDFromContext(ctx)),
 	)
 }
 
 // GetVideosByDate は指定日付の動画一覧を取得する
-func (u *videoUsecase) GetVideosByDate(ctx context.Context, input GetVideosByDateInput) (*GetVideosByDateOutput, error) {
+func (u *videoUsecase) GetVideosByDate(ctx context.Context, targetDate time.Time, hits, offset int32) ([]model.Video, *model.SearchMetadata, error) {
 	logger := u.loggerWithCtx(ctx)
-	targetDate, err := u.resolveDate(input.Date)
-	if err != nil {
-		logger.Debug("invalid date supplied", "date", input.Date, "error", err)
-		return nil, fmt.Errorf("%w: %v", ErrInvalidDateFormat, err)
-	}
-	hits := clampHits(input.Hits)
-	offset := clampOffset(input.Offset)
+	normHits := clampHits(hits)
+	normOffset := clampOffset(offset)
 	logger.Debug("GetVideosByDate called",
 		"targetDate", targetDate.Format("2006-01-02"),
-		"hits", hits,
-		"offset", offset,
+		"hits", normHits,
+		"offset", normOffset,
 	)
-	videos, metadata, err := u.videoRepo.GetVideosByDate(ctx, targetDate, hits, offset)
-	if err != nil {
-		return nil, err
-	}
-	return &GetVideosByDateOutput{
-		Videos:     videos,
-		Metadata:   metadata,
-		TargetDate: targetDate,
-		Hits:       hits,
-		Offset:     offset,
-	}, nil
+	return u.catalog.GetVideosByDate(ctx, targetDate, normHits, normOffset)
 }
 
 // GetVideoById は、指定された DMMビデオID の動画を取得する
-func (u *videoUsecase) GetVideoById(ctx context.Context, dmmId string) (*entity.Video, error) {
+func (u *videoUsecase) GetVideoById(ctx context.Context, dmmId string) (*model.Video, error) {
 	logger := u.loggerWithCtx(ctx)
 	logger.Debug("GetVideoById called", "dmmId", dmmId)
-	return u.videoRepo.GetVideoById(ctx, dmmId)
+	return u.catalog.GetVideoById(ctx, dmmId)
 }
 
 // SearchVideos はキーワードやIDを使って動画を検索する
-func (u *videoUsecase) SearchVideos(ctx context.Context, keyword, actressID, genreID, makerID, seriesID, directorID string) ([]entity.Video, *entity.SearchMetadata, error) {
+func (u *videoUsecase) SearchVideos(ctx context.Context, keyword, actressID, genreID, makerID, seriesID, directorID string) ([]model.Video, *model.SearchMetadata, error) {
 	logger := u.loggerWithCtx(ctx)
 	logger.Debug("SearchVideos called",
 		"keyword", keyword,
@@ -165,104 +93,59 @@ func (u *videoUsecase) SearchVideos(ctx context.Context, keyword, actressID, gen
 		"seriesID", seriesID,
 		"directorID", directorID,
 	)
-	return u.videoRepo.SearchVideos(ctx, keyword, actressID, genreID, makerID, seriesID, directorID)
+	return u.catalog.SearchVideos(ctx, keyword, actressID, genreID, makerID, seriesID, directorID)
 }
 
 // GetVideosByID は指定されたIDを使って動画を検索する
-func (u *videoUsecase) GetVideosByID(ctx context.Context, input GetVideosByIDInput) (*GetVideosOutput, error) {
+func (u *videoUsecase) GetVideosByID(
+	ctx context.Context,
+	actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs []string,
+	hits, offset int32,
+	sort, gteDate, lteDate, site, service, floor string,
+) ([]model.Video, *model.SearchMetadata, error) {
 	logger := u.loggerWithCtx(ctx)
-	hits := clampHits(input.Hits)
-	offset := clampOffset(input.Offset)
+	normHits := clampHits(hits)
+	normOffset := clampOffset(offset)
 	logger.Debug("GetVideosByID called",
-		"actressIDs", input.ActressIDs,
-		"genreIDs", input.GenreIDs,
-		"makerIDs", input.MakerIDs,
-		"seriesIDs", input.SeriesIDs,
-		"directorIDs", input.DirectorIDs,
-		"hits", hits,
-		"offset", offset,
-		"sort", input.Sort,
-		"gteDate", input.GteDate,
-		"lteDate", input.LteDate,
-		"site", input.Site,
-		"service", input.Service,
-		"floor", input.Floor,
+		"actressIDs", actressIDs,
+		"genreIDs", genreIDs,
+		"makerIDs", makerIDs,
+		"seriesIDs", seriesIDs,
+		"directorIDs", directorIDs,
+		"hits", normHits,
+		"offset", normOffset,
+		"sort", sort,
+		"gteDate", gteDate,
+		"lteDate", lteDate,
+		"site", site,
+		"service", service,
+		"floor", floor,
 	)
-	videos, metadata, err := u.videoRepo.GetVideosByID(
-		ctx,
-		input.ActressIDs,
-		input.GenreIDs,
-		input.MakerIDs,
-		input.SeriesIDs,
-		input.DirectorIDs,
-		hits,
-		offset,
-		input.Sort,
-		input.GteDate,
-		input.LteDate,
-		input.Site,
-		input.Service,
-		input.Floor,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &GetVideosOutput{
-		Videos:   videos,
-		Metadata: metadata,
-		Hits:     hits,
-		Offset:   offset,
-	}, nil
+	return u.catalog.GetVideosByID(ctx, actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs, normHits, normOffset, sort, gteDate, lteDate, site, service, floor)
 }
 
 // GetVideosByKeyword はキーワードを使って動画を検索する
-func (u *videoUsecase) GetVideosByKeyword(ctx context.Context, input GetVideosByKeywordInput) (*GetVideosOutput, error) {
+func (u *videoUsecase) GetVideosByKeyword(
+	ctx context.Context,
+	keyword string,
+	hits, offset int32,
+	sort, gteDate, lteDate, site, service, floor string,
+) ([]model.Video, *model.SearchMetadata, error) {
 	logger := u.loggerWithCtx(ctx)
-	hits := clampHits(input.Hits)
-	offset := clampOffset(input.Offset)
+	normHits := clampHits(hits)
+	normOffset := clampOffset(offset)
 	logger.Debug("GetVideosByKeyword called",
-		"keyword", input.Keyword,
-		"hits", hits,
-		"offset", offset,
-		"sort", input.Sort,
-		"gteDate", input.GteDate,
-		"lteDate", input.LteDate,
-		"site", input.Site,
-		"service", input.Service,
-		"floor", input.Floor,
+		"keyword", keyword,
+		"hits", normHits,
+		"offset", normOffset,
+		"sort", sort,
+		"gteDate", gteDate,
+		"lteDate", lteDate,
+		"site", site,
+		"service", service,
+		"floor", floor,
 	)
-	videos, metadata, err := u.videoRepo.GetVideosByKeyword(
-		ctx,
-		input.Keyword,
-		hits,
-		offset,
-		input.Sort,
-		input.GteDate,
-		input.LteDate,
-		input.Site,
-		input.Service,
-		input.Floor,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &GetVideosOutput{
-		Videos:   videos,
-		Metadata: metadata,
-		Hits:     hits,
-		Offset:   offset,
-	}, nil
-}
-
-func (u *videoUsecase) resolveDate(date string) (time.Time, error) {
-	if date == "" {
-		return u.now(), nil
-	}
-	parsed, err := time.Parse("2006-01-02", date)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return parsed, nil
+	return u.catalog.GetVideosByKeyword(ctx, keyword, normHits, normOffset, sort, gteDate, lteDate, site, service, floor)
 }
 
 func clampHits(hits int32) int32 {
