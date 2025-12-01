@@ -7,303 +7,179 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tikfack/server/internal/domain/entity"
-	mockrepo "github.com/tikfack/server/internal/domain/repository/mock"
+	"github.com/tikfack/server/internal/application/model"
+	mockcatalog "github.com/tikfack/server/internal/application/port/mock"
 	"go.uber.org/mock/gomock"
 )
 
 var (
 	testTime  = time.Date(2024, 1, 2, 15, 4, 5, 0, time.UTC)
-	testVideo = entity.Video{
+	testVideo = model.Video{
 		DmmID:        "test123",
-		Title:        "Test Video",
+		Title:        "動画1",
 		URL:          "https://example.com",
 		SampleURL:    "https://example.com/sample",
 		ThumbnailURL: "https://example.com/thumb.jpg",
 		CreatedAt:    testTime,
 		Price:        1000,
 		LikesCount:   500,
-		Actresses:    []entity.Actress{{ID: "a1", Name: "Actress"}},
-		Genres:       []entity.Genre{{ID: "g1", Name: "Genre"}},
-		Makers:       []entity.Maker{{ID: "m1", Name: "Maker"}},
-		Series:       []entity.Series{{ID: "s1", Name: "Series"}},
-		Directors:    []entity.Director{{ID: "d1", Name: "Director"}},
-		Review:       entity.Review{Count: 100, Average: 4.5},
+		Actresses:    []model.Actress{{ID: "a1", Name: "女優A"}},
+		Genres:       []model.Genre{{ID: "g1", Name: "ジャンルA"}},
+		Makers:       []model.Maker{{ID: "m1", Name: "メーカーA"}},
+		Series:       []model.Series{{ID: "s1", Name: "シリーズA"}},
+		Directors:    []model.Director{{ID: "d1", Name: "監督A"}},
+		Review:       model.Review{Count: 100, Average: 4.5},
 	}
-	testMetadata = &entity.SearchMetadata{
-		ResultCount:   10,
-		TotalCount:    100,
-		FirstPosition: 1,
-	}
+	testMetadata = &model.SearchMetadata{ResultCount: 10, TotalCount: 100, FirstPosition: 1}
 )
 
 func TestNewVideoUsecase(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockRepo := mockrepo.NewMockVideoRepository(ctrl)
-	uc := NewVideoUsecase(mockRepo)
+	mockCatalog := mockcatalog.NewMockVideoCatalog(ctrl)
+	uc := NewVideoUsecase(mockCatalog)
 	require.NotNil(t, uc)
 }
 
 func TestGetVideosByDate(t *testing.T) {
-	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	tests := []struct {
-		name       string
-		input      GetVideosByDateInput
-		now        func() time.Time
-		expectCall func(m *mockrepo.MockVideoRepository)
-		wantErr    error
-		wantHits   int32
-		wantOffset int32
-		wantDate   time.Time
+	catalog := mockcatalog.NewMockVideoCatalog(ctrl)
+	uc := NewVideoUsecase(catalog)
+
+	cases := []struct {
+		name         string
+		hits         int32
+		offset       int32
+		expectHits   int32
+		expectOffset int32
+		expectErr    error
 	}{
 		{
-			name: "指定日付で取得",
-			input: GetVideosByDateInput{
-				Date:   "2024-01-01",
-				Hits:   20,
-				Offset: 0,
-			},
-			expectCall: func(m *mockrepo.MockVideoRepository) {
-				targetDate, _ := time.Parse("2006-01-02", "2024-01-01")
-				m.EXPECT().
-					GetVideosByDate(gomock.Any(), targetDate, int32(20), int32(0)).
-					Return([]entity.Video{testVideo}, testMetadata, nil)
-			},
-			wantHits:   20,
-			wantOffset: 0,
-			wantDate:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			name:         "normal request",
+			hits:         10,
+			offset:       0,
+			expectHits:   10,
+			expectOffset: 0,
 		},
 		{
-			name: "日付未指定は現在時刻",
-			input: GetVideosByDateInput{
-				Hits:   20,
-				Offset: 10,
-			},
-			now: func() time.Time { return testTime },
-			expectCall: func(m *mockrepo.MockVideoRepository) {
-				m.EXPECT().
-					GetVideosByDate(gomock.Any(), testTime, int32(20), int32(10)).
-					Return([]entity.Video{testVideo}, testMetadata, nil)
-			},
-			wantHits:   20,
-			wantOffset: 10,
-			wantDate:   testTime,
-		},
-		{
-			name: "ヒット数は最大値で丸め",
-			input: GetVideosByDateInput{
-				Date:   "2024-01-01",
-				Hits:   200,
-				Offset: -5,
-			},
-			expectCall: func(m *mockrepo.MockVideoRepository) {
-				targetDate, _ := time.Parse("2006-01-02", "2024-01-01")
-				m.EXPECT().
-					GetVideosByDate(gomock.Any(), targetDate, int32(100), int32(0)).
-					Return([]entity.Video{testVideo}, testMetadata, nil)
-			},
-			wantHits:   100,
-			wantOffset: 0,
-			wantDate:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		},
-		{
-			name:       "日付フォーマットエラー",
-			input:      GetVideosByDateInput{Date: "invalid"},
-			expectCall: func(m *mockrepo.MockVideoRepository) {},
-			wantErr:    ErrInvalidDateFormat,
+			name:         "clamp hits and offset",
+			hits:         500,
+			offset:       -5,
+			expectHits:   maxHits,
+			expectOffset: 0,
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+			catalog.EXPECT().
+				GetVideosByDate(gomock.Any(), testTime, tt.expectHits, tt.expectOffset).
+				Return([]model.Video{testVideo}, testMetadata, tt.expectErr)
 
-			mockRepo := mockrepo.NewMockVideoRepository(ctrl)
-			if tt.expectCall != nil {
-				tt.expectCall(mockRepo)
-			}
-
-			uc := NewVideoUsecaseWithDeps(mockRepo, tt.now)
-			output, err := uc.GetVideosByDate(ctx, tt.input)
-
-			if tt.wantErr != nil {
-				require.Error(t, err)
-				require.ErrorIs(t, err, tt.wantErr)
-				require.Nil(t, output)
+			videos, md, err := uc.GetVideosByDate(context.Background(), testTime, tt.hits, tt.offset)
+			if tt.expectErr != nil {
+				require.ErrorIs(t, err, tt.expectErr)
+				require.Nil(t, videos)
+				require.Nil(t, md)
 				return
 			}
 
 			require.NoError(t, err)
-			require.NotNil(t, output)
-			require.Equal(t, tt.wantHits, output.Hits)
-			require.Equal(t, tt.wantOffset, output.Offset)
-			require.Equal(t, tt.wantDate, output.TargetDate)
-			require.Equal(t, []entity.Video{testVideo}, output.Videos)
-			require.Equal(t, testMetadata, output.Metadata)
+			require.Equal(t, []model.Video{testVideo}, videos)
+			require.Equal(t, testMetadata, md)
 		})
 	}
 }
 
 func TestGetVideoById(t *testing.T) {
-	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	tests := []struct {
-		name        string
-		id          string
-		setupMock   func(m *mockrepo.MockVideoRepository)
-		expected    *entity.Video
-		expectError error
-	}{
-		{
-			name: "正常系",
-			id:   "test123",
-			setupMock: func(m *mockrepo.MockVideoRepository) {
-				m.EXPECT().
-					GetVideoById(gomock.Any(), "test123").
-					Return(&testVideo, nil)
-			},
-			expected: &testVideo,
-		},
-		{
-			name: "異常系",
-			id:   "notfound",
-			setupMock: func(m *mockrepo.MockVideoRepository) {
-				m.EXPECT().
-					GetVideoById(gomock.Any(), "notfound").
-					Return(nil, errors.New("repository error"))
-			},
-			expectError: errors.New("repository error"),
-		},
-	}
+	catalog := mockcatalog.NewMockVideoCatalog(ctrl)
+	uc := NewVideoUsecase(catalog)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+	catalog.EXPECT().
+		GetVideoById(gomock.Any(), "abc123").
+		Return(&testVideo, nil)
 
-			mockRepo := mockrepo.NewMockVideoRepository(ctrl)
-			tt.setupMock(mockRepo)
-
-			uc := NewVideoUsecase(mockRepo)
-			video, err := uc.GetVideoById(ctx, tt.id)
-
-			if tt.expectError != nil {
-				require.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			require.Equal(t, tt.expected, video)
-		})
-	}
+	video, err := uc.GetVideoById(context.Background(), "abc123")
+	require.NoError(t, err)
+	require.Equal(t, &testVideo, video)
 }
 
 func TestSearchVideos(t *testing.T) {
-	ctx := context.Background()
-
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockRepo := mockrepo.NewMockVideoRepository(ctrl)
-	mockRepo.EXPECT().
-		SearchVideos(gomock.Any(), "keyword", "a", "g", "m", "s", "d").
-		Return([]entity.Video{testVideo}, testMetadata, nil)
+	catalog := mockcatalog.NewMockVideoCatalog(ctrl)
+	uc := NewVideoUsecase(catalog)
 
-	uc := NewVideoUsecase(mockRepo)
-	videos, metadata, err := uc.SearchVideos(ctx, "keyword", "a", "g", "m", "s", "d")
+	catalog.EXPECT().
+		SearchVideos(gomock.Any(), "keyword", "a", "g", "m", "s", "d").
+		Return([]model.Video{testVideo}, testMetadata, nil)
+
+	videos, md, err := uc.SearchVideos(context.Background(), "keyword", "a", "g", "m", "s", "d")
 	require.NoError(t, err)
-	require.Equal(t, []entity.Video{testVideo}, videos)
-	require.Equal(t, testMetadata, metadata)
+	require.Equal(t, []model.Video{testVideo}, videos)
+	require.Equal(t, testMetadata, md)
 }
 
 func TestGetVideosByID(t *testing.T) {
-	ctx := context.Background()
-
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockRepo := mockrepo.NewMockVideoRepository(ctrl)
-	mockRepo.EXPECT().
-		GetVideosByID(
-			gomock.Any(),
-			[]string{"1"},
-			[]string{"2"},
-			[]string{"3"},
-			[]string{"4"},
-			[]string{"5"},
-			int32(100),
-			int32(0),
-			"rank",
-			"2023-01-01",
-			"2023-12-31",
-			"FANZA",
-			"digital",
-			"videoa",
-		).
-		Return([]entity.Video{testVideo}, testMetadata, nil)
+	catalog := mockcatalog.NewMockVideoCatalog(ctrl)
+	uc := NewVideoUsecase(catalog)
 
-	uc := NewVideoUsecase(mockRepo)
-	output, err := uc.GetVideosByID(ctx, GetVideosByIDInput{
-		ActressIDs:  []string{"1"},
-		GenreIDs:    []string{"2"},
-		MakerIDs:    []string{"3"},
-		SeriesIDs:   []string{"4"},
-		DirectorIDs: []string{"5"},
-		Hits:        200, // clamp to 100
-		Offset:      -10, // clamp to 0
-		Sort:        "rank",
-		GteDate:     "2023-01-01",
-		LteDate:     "2023-12-31",
-		Site:        "FANZA",
-		Service:     "digital",
-		Floor:       "videoa",
-	})
+	actress := []string{"a1"}
+	genre := []string{"g1"}
+	maker := []string{"m1"}
+	series := []string{"s1"}
+	director := []string{"d1"}
+
+	catalog.EXPECT().
+		GetVideosByID(gomock.Any(), actress, genre, maker, series, director, maxHits, int32(0), "popular", "", "", "", "", "").
+		Return([]model.Video{testVideo}, testMetadata, nil)
+
+	videos, md, err := uc.GetVideosByID(context.Background(), actress, genre, maker, series, director, 1000, -10, "popular", "", "", "", "", "")
 	require.NoError(t, err)
-	require.Equal(t, int32(100), output.Hits)
-	require.Equal(t, int32(0), output.Offset)
-	require.Equal(t, []entity.Video{testVideo}, output.Videos)
-	require.Equal(t, testMetadata, output.Metadata)
+	require.Equal(t, []model.Video{testVideo}, videos)
+	require.Equal(t, testMetadata, md)
 }
 
 func TestGetVideosByKeyword(t *testing.T) {
-	ctx := context.Background()
-
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockRepo := mockrepo.NewMockVideoRepository(ctrl)
-	mockRepo.EXPECT().
-		GetVideosByKeyword(
-			gomock.Any(),
-			"keyword",
-			int32(100),
-			int32(0),
-			"rank",
-			"",
-			"",
-			"FANZA",
-			"digital",
-			"videoa",
-		).
-		Return([]entity.Video{testVideo}, testMetadata, nil)
+	catalog := mockcatalog.NewMockVideoCatalog(ctrl)
+	uc := NewVideoUsecase(catalog)
 
-	uc := NewVideoUsecase(mockRepo)
-	output, err := uc.GetVideosByKeyword(ctx, GetVideosByKeywordInput{
-		Keyword: "keyword",
-		Hits:    150, // clamp to 100
-		Offset:  -5,  // clamp to 0
-		Sort:    "rank",
-		Site:    "FANZA",
-		Service: "digital",
-		Floor:   "videoa",
-	})
+	catalog.EXPECT().
+		GetVideosByKeyword(gomock.Any(), "hello", int32(50), int32(20), "date", "2024-01-01", "", "FANZA", "digital", "videoa").
+		Return([]model.Video{testVideo}, testMetadata, nil)
+
+	videos, md, err := uc.GetVideosByKeyword(context.Background(), "hello", 50, 20, "date", "2024-01-01", "", "FANZA", "digital", "videoa")
 	require.NoError(t, err)
-	require.Equal(t, int32(100), output.Hits)
-	require.Equal(t, int32(0), output.Offset)
-	require.Equal(t, []entity.Video{testVideo}, output.Videos)
-	require.Equal(t, testMetadata, output.Metadata)
+	require.Equal(t, []model.Video{testVideo}, videos)
+	require.Equal(t, testMetadata, md)
+}
+
+func TestGetVideosByKeywordClamp(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	catalog := mockcatalog.NewMockVideoCatalog(ctrl)
+	uc := NewVideoUsecase(catalog)
+
+	catalog.EXPECT().
+		GetVideosByKeyword(gomock.Any(), "hello", maxHits, int32(0), "", "", "", "", "", "").
+		Return(nil, nil, errors.New("boom"))
+
+	videos, md, err := uc.GetVideosByKeyword(context.Background(), "hello", 200, -30, "", "", "", "", "", "")
+	require.Nil(t, videos)
+	require.Nil(t, md)
+	require.Error(t, err)
 }

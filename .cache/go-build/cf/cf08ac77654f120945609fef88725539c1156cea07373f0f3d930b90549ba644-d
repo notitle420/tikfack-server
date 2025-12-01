@@ -1,0 +1,9 @@
+./client.go
+./dmm_repository.go
+./mapper.go
+./mock_client.go
+./mock_mapper.go
+./types.go
+./client_test.go
+./dmm_repository_test.go
+./mapper_test.go

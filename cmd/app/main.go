@@ -10,8 +10,7 @@ import (
 	"github.com/joho/godotenv"
 	gocloak "github.com/mviniciusgc/gocloak/v13"
 	"github.com/rs/cors"
-	eventLogHandler "github.com/tikfack/server/internal/infrastructure/connect/event_log"
-	videoHandler "github.com/tikfack/server/internal/infrastructure/connect/video"
+	"github.com/tikfack/server/internal/di"
 	auth "github.com/tikfack/server/internal/middleware/auth"
 	"github.com/tikfack/server/internal/middleware/logger"
 )
@@ -52,8 +51,6 @@ func main() {
 	}
 	slog.Info("OIDC verifier initialized", "verifier", verifier)
 
-	mux := http.NewServeMux()
-
 	introspectionInterceptor := auth.IntrospectionInterceptor(
 		verifier,
 		gocloakClient,
@@ -68,22 +65,32 @@ func main() {
 		auth.CheckPermissionFunc,
 	)
 
-	videoHandler := videoHandler.NewVideoServiceHandler(
+	videoHandler, err := di.InitializeVideoHandler([]connect.HandlerOption{
 		connect.WithInterceptors(
 			introspectionInterceptor,
 			logger.LoggingInterceptor(),
 			permInterceptor,
-		))
-	vpattern, vhandler := videoHandler.GetHandler()
-	mux.Handle(vpattern, vhandler)
+		),
+	})
+	if err != nil {
+		slog.Error("failed to initialize video handler", "error", err)
+		os.Exit(1)
+	}
 
-	eventLogHandler := eventLogHandler.NewEventLogServiceHandler(
+	mux := http.NewServeMux()
+	pattern, handler := videoHandler.GetHandler()
+	mux.Handle(pattern, handler)
+
+	eventHandler, err := di.InitializeEventLogHandler([]connect.HandlerOption{
 		connect.WithInterceptors(
 			logger.LoggingInterceptor(),
 		),
-	)
-	
-	epattern, ehandler := eventLogHandler.GetHandler()
+	})
+	if err != nil {
+		slog.Error("failed to initialize event log handler", "error", err)
+		os.Exit(1)
+	}
+	epattern, ehandler := eventHandler.GetHandler()
 	mux.Handle(epattern, ehandler)
 
 	// ミドルウェアチェイン

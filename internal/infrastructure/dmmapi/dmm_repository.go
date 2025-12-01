@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tikfack/server/internal/domain/entity"
-	"github.com/tikfack/server/internal/domain/repository"
+	"github.com/tikfack/server/internal/application/model"
+	"github.com/tikfack/server/internal/application/port"
 	"github.com/tikfack/server/internal/middleware/logger"
 )
 
@@ -21,12 +21,12 @@ type Repository struct {
 
 type defaultMapper struct{}
 
-func (m defaultMapper) ConvertEntityFromDMM(result Result) ([]entity.Video, *entity.SearchMetadata) {
+func (m defaultMapper) ConvertEntityFromDMM(result Result) ([]model.Video, *model.SearchMetadata) {
 	return ConvertEntityFromDMM(result)
 }
 
 // NewRepository 新しい DMM 用 Repository を返す
-func NewRepository() (repository.VideoRepository, error) {
+func NewRepository() (port.VideoCatalog, error) {
 	c, err := NewClient()
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func NewRepository() (repository.VideoRepository, error) {
 }
 
 // NewRepositoryWithDeps テストやモック注入用のコンストラクタ
-func NewRepositoryWithDeps(client ClientInterface, mapper MapperInterface) repository.VideoRepository {
+func NewRepositoryWithDeps(client ClientInterface, mapper MapperInterface) port.VideoCatalog {
 	return &Repository{
 		client: client,
 		mapper: mapper,
@@ -48,7 +48,7 @@ func NewRepositoryWithDeps(client ClientInterface, mapper MapperInterface) repos
 }
 
 // NewRepositoryWithLogger creates a repository with a custom logger
-func NewRepositoryWithLogger(client ClientInterface, mapper MapperInterface, logger *slog.Logger) repository.VideoRepository {
+func NewRepositoryWithLogger(client ClientInterface, mapper MapperInterface, logger *slog.Logger) port.VideoCatalog {
 	return &Repository{
 		client: client,
 		mapper: mapper,
@@ -64,7 +64,7 @@ func (r *Repository) SetLogger(logger *slog.Logger) {
 var ErrAPIError = errors.New("API error")
 
 // GetVideosByDate は指定日付の動画一覧を取得する
-func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time, hits, offset int32) ([]entity.Video, *entity.SearchMetadata, error) {
+func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time, hits, offset int32) ([]model.Video, *model.SearchMetadata, error) {
 	path := fmt.Sprintf(
 		"/v3/ItemList?site=FANZA&service=digital&floor=videoa&sort=date&hits=%d&offset=%d&gte_date=%s&lte_date=%s",
 		hits,
@@ -94,7 +94,7 @@ func (r *Repository) GetVideosByDate(ctx context.Context, targetDate time.Time, 
 }
 
 // GetVideoById は指定 ID の動画情報を取得する
-func (r *Repository) GetVideoById(ctx context.Context, dmmID string) (*entity.Video, error) {
+func (r *Repository) GetVideoById(ctx context.Context, dmmID string) (*model.Video, error) {
 	path := fmt.Sprintf(
 		"/v3/ItemList?site=FANZA&service=digital&floor=videoa&cid=%s",
 		dmmID,
@@ -116,7 +116,7 @@ func (r *Repository) GetVideoById(ctx context.Context, dmmID string) (*entity.Vi
 func (r *Repository) SearchVideos(
 	ctx context.Context,
 	keyword, actressID, genreID, makerID, seriesID, directorID string,
-) ([]entity.Video, *entity.SearchMetadata, error) {
+) ([]model.Video, *model.SearchMetadata, error) {
 	params := []string{"site=FANZA", "service=digital", "floor=videoa"}
 	if keyword != "" {
 		params = append(params, fmt.Sprintf("keyword=%s", keyword))
@@ -158,12 +158,12 @@ func (r *Repository) SearchVideos(
 	}
 
 	if len(resp.Result.Items) == 0 {
-		md := &entity.SearchMetadata{
+		md := &model.SearchMetadata{
 			ResultCount:   resp.Result.ResultCount,
 			TotalCount:    resp.Result.TotalCount,
 			FirstPosition: resp.Result.FirstPosition,
 		}
-		return []entity.Video{}, md, nil
+		return []model.Video{}, md, nil
 	}
 
 	videos, metadata := r.mapper.ConvertEntityFromDMM(resp.Result)
@@ -176,7 +176,7 @@ func (r *Repository) GetVideosByID(
 	actressIDs, genreIDs, makerIDs, seriesIDs, directorIDs []string,
 	hits, offset int32,
 	sort, gteDate, lteDate, site, service, floor string,
-) ([]entity.Video, *entity.SearchMetadata, error) {
+) ([]model.Video, *model.SearchMetadata, error) {
 	params := []string{
 		fmt.Sprintf("site=%s", defaultIfEmpty(site, "FANZA")),
 		fmt.Sprintf("service=%s", defaultIfEmpty(service, "digital")),
@@ -245,12 +245,12 @@ func (r *Repository) GetVideosByID(
 	}
 
 	if len(resp.Result.Items) == 0 {
-		md := &entity.SearchMetadata{
+		md := &model.SearchMetadata{
 			ResultCount:   resp.Result.ResultCount,
 			TotalCount:    resp.Result.TotalCount,
 			FirstPosition: resp.Result.FirstPosition,
 		}
-		return []entity.Video{}, md, nil
+		return []model.Video{}, md, nil
 	}
 
 	videos, metadata := r.mapper.ConvertEntityFromDMM(resp.Result)
@@ -263,7 +263,7 @@ func (r *Repository) GetVideosByKeyword(
 	keyword string,
 	hits, offset int32,
 	sort, gteDate, lteDate, site, service, floor string,
-) ([]entity.Video, *entity.SearchMetadata, error) {
+) ([]model.Video, *model.SearchMetadata, error) {
 	params := []string{
 		fmt.Sprintf("site=%s", defaultIfEmpty(site, "FANZA")),
 		fmt.Sprintf("service=%s", defaultIfEmpty(service, "digital")),

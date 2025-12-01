@@ -7,56 +7,61 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tikfack/server/internal/domain/entity"
+	"github.com/tikfack/server/internal/application/model"
+	"github.com/tikfack/server/internal/infrastructure/util"
 )
 
-type MapperInterface interface {
-	ConvertEntityFromDMM(Result) ([]entity.Video, *entity.SearchMetadata)
+var resolveDirectURL = func(dmmID string) (string, error) {
+	return util.GetValidVideoUrl(dmmID)
 }
 
-// ConvertEntityFromDMM は DMM API のレスポンス結果を entity.Video と entity.SearchMetadata に変換する
-func ConvertEntityFromDMM(result Result) ([]entity.Video, *entity.SearchMetadata) { // メタデータの変換
-	metadata := &entity.SearchMetadata{
+type MapperInterface interface {
+	ConvertEntityFromDMM(Result) ([]model.Video, *model.SearchMetadata)
+}
+
+// ConvertEntityFromDMM は DMM API のレスポンス結果を model.Video と model.SearchMetadata に変換する
+func ConvertEntityFromDMM(result Result) ([]model.Video, *model.SearchMetadata) {
+	metadata := &model.SearchMetadata{
 		ResultCount:   result.ResultCount,
 		TotalCount:    result.TotalCount,
 		FirstPosition: result.FirstPosition,
 	}
 
 	// 動画の変換
-	videos := make([]entity.Video, 0, len(result.Items))
+	videos := make([]model.Video, 0, len(result.Items))
 	for _, item := range result.Items {
 		// 価格や日付のパースなどロジックをここに集約
 		price := parsePrice(item)
 		created := parseDate(item.Date)
 
 		// actor/genre/maker などの変換
-		actresses := make([]entity.Actress, 0, len(item.ItemInfo.Actress))
+		actresses := make([]model.Actress, 0, len(item.ItemInfo.Actress))
 		for _, a := range item.ItemInfo.Actress {
-			actresses = append(actresses, entity.Actress{ID: strconv.Itoa(a.ID), Name: a.Name})
+			actresses = append(actresses, model.Actress{ID: strconv.Itoa(a.ID), Name: a.Name})
 		}
 
 		// genres変換
-		genres := make([]entity.Genre, 0, len(item.ItemInfo.Genre))
+		genres := make([]model.Genre, 0, len(item.ItemInfo.Genre))
 		for _, g := range item.ItemInfo.Genre {
-			genres = append(genres, entity.Genre{ID: strconv.Itoa(g.ID), Name: g.Name})
+			genres = append(genres, model.Genre{ID: strconv.Itoa(g.ID), Name: g.Name})
 		}
 
 		// makers変換
-		makers := make([]entity.Maker, 0, len(item.ItemInfo.Maker))
+		makers := make([]model.Maker, 0, len(item.ItemInfo.Maker))
 		for _, m := range item.ItemInfo.Maker {
-			makers = append(makers, entity.Maker{ID: strconv.Itoa(m.ID), Name: m.Name})
+			makers = append(makers, model.Maker{ID: strconv.Itoa(m.ID), Name: m.Name})
 		}
 
 		// series変換
-		series := make([]entity.Series, 0, len(item.ItemInfo.Series))
+		series := make([]model.Series, 0, len(item.ItemInfo.Series))
 		for _, s := range item.ItemInfo.Series {
-			series = append(series, entity.Series{ID: strconv.Itoa(s.ID), Name: s.Name})
+			series = append(series, model.Series{ID: strconv.Itoa(s.ID), Name: s.Name})
 		}
 
 		// directors変換
-		directors := make([]entity.Director, 0, len(item.ItemInfo.Director))
+		directors := make([]model.Director, 0, len(item.ItemInfo.Director))
 		for _, d := range item.ItemInfo.Director {
-			directors = append(directors, entity.Director{ID: strconv.Itoa(d.ID), Name: d.Name})
+			directors = append(directors, model.Director{ID: strconv.Itoa(d.ID), Name: d.Name})
 		}
 
 		// サンプル動画URL
@@ -65,8 +70,13 @@ func ConvertEntityFromDMM(result Result) ([]entity.Video, *entity.SearchMetadata
 			sampleURL = item.SampleMovieURL.Size720480
 		}
 
+		directURL := ""
+		if resolved, err := resolveDirectURL(item.ContentID); err == nil && resolved != "" {
+			directURL = resolved
+		}
+
 		// レビュー情報
-		review := entity.Review{
+		review := model.Review{
 			Count:   0,
 			Average: 0,
 		}
@@ -77,10 +87,10 @@ func ConvertEntityFromDMM(result Result) ([]entity.Video, *entity.SearchMetadata
 			}
 		}
 
-		video := entity.Video{
+		video := model.Video{
 			DmmID:        item.ContentID,
 			Title:        item.Title,
-			DirectURL:    sampleURL,
+			DirectURL:    directURL,
 			URL:          item.URL,
 			SampleURL:    sampleURL,
 			ThumbnailURL: item.ImageURL.Large,

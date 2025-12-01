@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/tikfack/server/internal/domain/entity"
+	"github.com/tikfack/server/internal/application/model"
 )
 
 func TestGetVideosByDate(t *testing.T) {
@@ -29,10 +29,10 @@ func TestGetVideosByDate(t *testing.T) {
 			Average: "4.0",
 		},
 	}
-	videoEntity := entity.Video{
+	videoEntity := model.Video{
 		DmmID: "vid1",
 		Title: "テスト動画",
-		Review: entity.Review{
+		Review: model.Review{
 			Count:   5,
 			Average: 4.0,
 		},
@@ -42,8 +42,8 @@ func TestGetVideosByDate(t *testing.T) {
 		name             string
 		date             time.Time
 		setupMock        func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
-		expected         []entity.Video
-		expectedMetadata *entity.SearchMetadata
+		expected         []model.Video
+		expectedMetadata *model.SearchMetadata
 		expectedErr      error
 	}{
 		{
@@ -64,14 +64,14 @@ func TestGetVideosByDate(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -109,14 +109,14 @@ func TestGetVideosByDate(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{}, &entity.SearchMetadata{
+					Return([]model.Video{}, &model.SearchMetadata{
 						ResultCount:   0,
 						TotalCount:    0,
 						FirstPosition: 0,
 					})
 			},
-			expected: []entity.Video{},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   0,
 				TotalCount:    0,
 				FirstPosition: 0,
@@ -168,11 +168,11 @@ func TestGetVideoById(t *testing.T) {
 		},
 	}
 	createdAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	videoEntity := entity.Video{
+	videoEntity := model.Video{
 		DmmID:     "vid1",
 		Title:     "テスト動画",
 		CreatedAt: createdAt,
-		Review: entity.Review{
+		Review: model.Review{
 			Count:   10,
 			Average: 4.5,
 		},
@@ -183,7 +183,7 @@ func TestGetVideoById(t *testing.T) {
 		name        string
 		videoID     string
 		setupMock   func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
-		expected    *entity.Video
+		expected    *model.Video
 		expectedErr error
 	}{
 		{
@@ -200,7 +200,7 @@ func TestGetVideoById(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, nil)
+					Return([]model.Video{videoEntity}, nil)
 			},
 			expected:    &videoEntity,
 			expectedErr: nil,
@@ -279,10 +279,10 @@ func TestSearchVideos(t *testing.T) {
 			Average: "3.5",
 		},
 	}
-	videoEntity := entity.Video{
+	videoEntity := model.Video{
 		DmmID: "vid1",
 		Title: "テスト動画",
-		Review: entity.Review{
+		Review: model.Review{
 			Count:   15,
 			Average: 3.5,
 		},
@@ -297,8 +297,8 @@ func TestSearchVideos(t *testing.T) {
 		seriesID         string
 		directorID       string
 		setupMock        func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
-		expected         []entity.Video
-		expectedMetadata *entity.SearchMetadata
+		expected         []model.Video
+		expectedMetadata *model.SearchMetadata
 		expectedErr      error
 	}{
 		{
@@ -324,14 +324,14 @@ func TestSearchVideos(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -357,14 +357,14 @@ func TestSearchVideos(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -390,14 +390,14 @@ func TestSearchVideos(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -423,14 +423,14 @@ func TestSearchVideos(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -456,14 +456,14 @@ func TestSearchVideos(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -489,14 +489,14 @@ func TestSearchVideos(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -540,8 +540,8 @@ func TestSearchVideos(t *testing.T) {
 					})
 				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
-			expected: []entity.Video{},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   0,
 				TotalCount:    0,
 				FirstPosition: 0,
@@ -592,10 +592,10 @@ func TestGetVideosByID(t *testing.T) {
 			Average: "4.2",
 		},
 	}
-	videoEntity := entity.Video{
+	videoEntity := model.Video{
 		DmmID: "vid1",
 		Title: "テスト動画",
-		Review: entity.Review{
+		Review: model.Review{
 			Count:   20,
 			Average: 4.2,
 		},
@@ -617,8 +617,8 @@ func TestGetVideosByID(t *testing.T) {
 		service          string
 		floor            string
 		setupMock        func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
-		expected         []entity.Video
-		expectedMetadata *entity.SearchMetadata
+		expected         []model.Video
+		expectedMetadata *model.SearchMetadata
 		expectedErr      error
 	}{
 		{
@@ -647,14 +647,14 @@ func TestGetVideosByID(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -687,14 +687,14 @@ func TestGetVideosByID(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -727,14 +727,14 @@ func TestGetVideosByID(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -767,14 +767,14 @@ func TestGetVideosByID(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -807,14 +807,14 @@ func TestGetVideosByID(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -847,14 +847,14 @@ func TestGetVideosByID(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -887,14 +887,14 @@ func TestGetVideosByID(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -927,14 +927,14 @@ func TestGetVideosByID(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -992,8 +992,8 @@ func TestGetVideosByID(t *testing.T) {
 					})
 				mockMapper.EXPECT().ConvertEntityFromDMM(gomock.Any()).Times(0)
 			},
-			expected: []entity.Video{},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   0,
 				TotalCount:    0,
 				FirstPosition: 0,
@@ -1045,10 +1045,10 @@ func TestGetVideosByKeyword(t *testing.T) {
 			Average: "3.8",
 		},
 	}
-	videoEntity := entity.Video{
+	videoEntity := model.Video{
 		DmmID: "vid1",
 		Title: "テスト動画",
-		Review: entity.Review{
+		Review: model.Review{
 			Count:   25,
 			Average: 3.8,
 		},
@@ -1066,8 +1066,8 @@ func TestGetVideosByKeyword(t *testing.T) {
 		service          string
 		floor            string
 		setupMock        func(mockClient *MockClientInterface, mockMapper *MockMapperInterface)
-		expected         []entity.Video
-		expectedMetadata *entity.SearchMetadata
+		expected         []model.Video
+		expectedMetadata *model.SearchMetadata
 		expectedErr      error
 	}{
 		{
@@ -1096,14 +1096,14 @@ func TestGetVideosByKeyword(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -1136,14 +1136,14 @@ func TestGetVideosByKeyword(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    10,
 						FirstPosition: 6,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    10,
 				FirstPosition: 6,
@@ -1176,14 +1176,14 @@ func TestGetVideosByKeyword(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -1216,14 +1216,14 @@ func TestGetVideosByKeyword(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
@@ -1256,14 +1256,14 @@ func TestGetVideosByKeyword(t *testing.T) {
 					})
 				mockMapper.EXPECT().
 					ConvertEntityFromDMM(resp.Result).
-					Return([]entity.Video{videoEntity}, &entity.SearchMetadata{
+					Return([]model.Video{videoEntity}, &model.SearchMetadata{
 						ResultCount:   1,
 						TotalCount:    1,
 						FirstPosition: 1,
 					})
 			},
-			expected: []entity.Video{videoEntity},
-			expectedMetadata: &entity.SearchMetadata{
+			expected: []model.Video{videoEntity},
+			expectedMetadata: &model.SearchMetadata{
 				ResultCount:   1,
 				TotalCount:    1,
 				FirstPosition: 1,
