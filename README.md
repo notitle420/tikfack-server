@@ -1,226 +1,172 @@
 # TikFack Server
 
-TikFack サーバーは、動画配信のバックエンドを担当する Go で書かれたアプリケーションです。このサーバーは Connect プロトコルを使用して API を提供し、DMM API を利用して動画データを取得します。
-
-クリーンアーキテクチャの原則に従って設計され、高い保守性とテスタビリティを実現しています。
+TikFack サーバーは、動画配信のバックエンドを担当する Go 製アプリケーションです。Connect プロトコルを用いて gRPC / gRPC-Web / REST を同時に公開し、DMM API から動画データを取得します。クリーンアーキテクチャの考え方で構成しているため、ユースケースの追加や外部サービスの差し替えが行いやすい構造になっています。
 
 ## 主な機能
 
 ### コア機能
 - **DMM API 統合**: DMM の動画データベースからリアルタイムで動画情報を取得
-- **Connect プロトコル対応**: gRPC と REST の両方をサポートする統一API
-- **動画検索**: 日付、キーワード、IDによる柔軟な動画検索機能
-- **認証・認可**: OIDC と Keycloak を使用したセキュアな認証システム
+- **Connect プロトコル対応**: gRPC と REST の両方をサポートする統一 API
+- **動画検索**: 日付、キーワード、ID による柔軟な動画検索機能
+- **認証・認可**: OIDC + Keycloak によるセキュアな認可フロー
+- **イベントログ収集**: 視聴イベントを Kafka に書き込む EventLogService
 
 ### アーキテクチャ特徴
-- **クリーンアーキテクチャ**: ドメイン駆動設計による明確な責務分離
-- **依存性注入**: 高いテスタビリティと拡張性を実現
-- **包括的テスト**: ユニットテストとモックを活用した高品質コード
-- **ミドルウェア対応**: ログ記録、認証、CORS などの横断的関心事を効率的に処理
+- **クリーンアーキテクチャ**: ドメイン駆動設計に基づく明確な責務分離
+- **依存性注入**: モック置き換え可能な実装でテストが容易
+- **包括的テスト**: テーブル駆動テストと gomock による堅牢なユニットテスト
+- **ミドルウェア**: ログ、認証、CORS などの横断的関心ごとを疎結合で実装
 
 ## 必要条件
 
 ### システム要件
-- **Go**: 1.23.0 以上（toolchain: go1.24.3）
-- **Protocol Buffers**: protoc コンパイラ
+- **Go**: 1.23.0 以上（`toolchain go1.24.3` を使用）
+- **Protocol Buffers**: `protoc` コンパイラ
 - **buf**: Protocol Buffers 生成ツール
-- **Docker**: コンテナ実行用（オプション）
+- **Docker / docker compose**: コンテナで動かす場合に必要
 
 ### 外部サービス
-- **DMM API アカウント**: API ID とアフィリエイト ID が必要
-- **認証プロバイダー**: Keycloak
+- **DMM API**: API ID とアフィリエイト ID
+- **Keycloak**: OIDC イシューア
+- **Kafka**: EventLogService の書き込み先（デフォルトは `localhost:9094`）
 
-## 環境変数
+## セットアップ
 
-プロジェクトのルートディレクトリに `.env` ファイルを作成し、以下の環境変数を設定してください：
-
-### 必須設定
-```bash
-
-DMM_API_ID= #DMMのAPIID
-DMM_API_AFFILIATE_ID= #DMMのアフィリエイトID
-PORT=50051 #50051でOK
-BASE_URL=https://api.dmm.com/affiliate/ #DMMのベースURL
-HITS=10 # オプション: DMM API から取得する動画の数
-LOG_LEVEL=debug #ログレベル
-ISSUER_URL= #keycloakのベースURL http://localhost:18080/realms/myrealm
-CLIENT_ID= #keycloackのバックエンド用のクライアントID
-KEYCLOAK_REALM= #keycloackのREALM 
-KEYCLOAK_BACKEND_CLIENT_SECRET= #keycloackのバックエンド用のクライアントID keycloak → ckuebts → backuendclients → credentials
-KEYCLOAK_BASE_URL= #keycloakのベースURL：例 http://localhost:18080
-KAFKA_BROKER_ADDRESSES=localhost:9094 # カンマ区切りでKafkaブローカーのホスト:ポートを設定（未設定時はlocalhost:9094）
-```
-
-## Protocol Buffers のセットアップ
-
-サーバーを実行する前に、Protocol Buffers からコードを生成する必要があります：
+### 1. リポジトリと依存関係
 
 ```bash
-# buf ツールのインストール（必要な場合）
-go install github.com/bufbuild/buf/cmd/buf@latest
-
-# Protocol Buffers コードの生成
-buf generate
-```
-
-これにより、`gen` ディレクトリに必要なコードが生成されます。
-
-## インストールと実行
-
-### ローカル開発環境
-
-```bash
-# 1. リポジトリのクローン
 git clone https://github.com/tikfack/server.git
 cd tikfack-server
-
-# 2. 依存関係のインストール
 go mod download
+```
 
-# 3. 環境変数の設定
-cp .env.example .env  # .env ファイルを作成し、必要な値を設定
+### 2. 環境変数
 
-# 4. Protocol Buffers コードの生成
-buf generate
+`godotenv` が自動的に `.env` を読み込むため、ルートにファイルを作成します。Docker では `docker.env` を参照するため、両方を同じ値で管理するのが簡単です。
 
-# 5. サーバーの起動
+```bash
+cp docker.env .env  # 既存の値をベースにローカル用を作成（必要に応じて編集）
+```
+
+主要な変数は以下のとおりです。
+
+| 変数 | 必須 | 説明 | デフォルト |
+| --- | --- | --- | --- |
+| `DMM_API_ID` | ✅ | DMM API ID | - |
+| `DMM_API_AFFILIATE_ID` | ✅ | DMM アフィリエイト ID | - |
+| `BASE_URL` | ⭕ | DMM API ベース URL | `https://api.dmm.com/affiliate/` |
+| `HITS` | ⭕ | DMM API から取得する件数 | `10` |
+| `PORT` | ⭕ | HTTP リッスンポート | `50051` |
+| `LOG_LEVEL` | ⭕ | `debug/info/warn/error` | `info` |
+| `ISSUER_URL` | ✅ | Keycloak Realm の Issuer URL | - |
+| `CLIENT_ID` | ✅ | バックエンド用クライアント ID | - |
+| `KEYCLOAK_REALM` | ✅ | Realm 名 | - |
+| `KEYCLOAK_BACKEND_CLIENT_SECRET` | ✅ | クライアントシークレット | - |
+| `KEYCLOAK_BASE_URL` | ✅ | gocloak が利用する Keycloak ベース URL | - |
+| `KAFKA_BROKER_ADDRESSES` | ⭕ | Kafka ブローカー (`host:port` をカンマ区切り) | `localhost:9094` |
+
+### 3. Protocol Buffers コード生成
+
+#### Docker 利用（推奨）
+
+Buf や protoc プラグインをローカルに入れなくても、Docker イメージ経由で生成できます。
+
+```bash
+./scripts/buf-generate.sh
+```
+
+必要に応じて追加の buf フラグを渡せます（例: `./scripts/buf-generate.sh --path proto/event_log`）。
+
+
+## アプリケーションの起動
+
+### ローカル起動
+
+```bash
 go run cmd/app/main.go
 ```
 
-gRPCは `localhost:50051` でアクセス可能です。
+gRPC / Connect / REST を `http://localhost:50051` で公開します。
 
-### Docker を使った実行
+### Docker 起動
+
+docker.envを用意し上記の内容を記述してください
 
 ```bash
-# Docker イメージのビルド
-docker build -t tikfack-server .
-
-# コンテナの実行
-docker run -p 50051:50051 --env-file .env tikfack-server
+docker compose up --build
 ```
+
+`docker.env` が `env_file` として読み込まれます。Keycloak や Kafka などの外部コンテナは `backend` ネットワーク上に存在する必要があります。
 
 ## トラブルシューティング
 
-### パッケージのインポートエラー
-
-以下のようなエラーが表示される場合：
-
-```
-package server/generated is not in std
-package server/generated/protoconnect is not in std
-```
-
-Protocol Buffers のコードが正しく生成されていない可能性があります。以下の手順を試してください：
-
-1. `buf generate` コマンドを実行して Protocol Buffers コードを生成する
-2. `go mod tidy` を実行して依存関係を更新する
-3. もし問題が解決しない場合は、`go.mod` ファイルの `module` 行が正しいパスになっているか確認する
+### Protocol Buffers の生成エラー
+- `buf generate` が実行済みか確認
+- `go mod tidy` で依存関係を整理
+- `go env GOPATH` に生成物が正しく配置されているか確認
 
 ## API エンドポイント
 
-サーバーは以下の API エンドポイントを提供します：
+Connect は HTTP/1.1・HTTP/2 どちらでも使用でき、gRPC クライアントからもアクセス可能です。デフォルトでは JSON over HTTP/1.1 も有効なため、`curl` でも動作します。
 
-### VideoService API
+### VideoService (`video.VideoService`)
 
-#### GetVideos
-動画のリストを取得します。
-- **URL**: `/proto.video.v1.VideoService/GetVideos`
-- **メソッド**: POST（Connect プロトコル）
-- **機能**: 指定した条件に基づいて動画一覧を取得
+| RPC | HTTP パス | 説明 |
+| --- | --- | --- |
+| `GetVideosByDate` | `/video.VideoService/GetVideosByDate` | 日付範囲で検索し、`SearchMetadata` を返す |
+| `GetVideoById` | `/video.VideoService/GetVideoById` | DMM ID から単一動画を取得 |
+| `SearchVideos` | `/video.VideoService/SearchVideos` | v3 互換の検索パラメータによる総合検索 |
+| `GetVideosByID` | `/video.VideoService/GetVideosByID` | 女優/ジャンル/メーカーなどの ID 条件で絞り込み |
+| `GetVideosByKeyword` | `/video.VideoService/GetVideosByKeyword` | キーワード + 期間 + ソートで検索 |
 
-#### GetVideoById
-指定した ID の動画情報を取得します。
-- **URL**: `/proto.video.v1.VideoService/GetVideoById`
-- **メソッド**: POST（Connect プロトコル）
-- **パラメーター**: 動画ID
-- **レスポンス**: 動画の詳細情報
+### EventLogService (`eventlog.EventLogService`)
 
-#### SearchVideos
-キーワードによる動画検索を行います。
-- **URL**: `/proto.video.v1.VideoService/SearchVideos`
-- **メソッド**: POST（Connect プロトコル）
-- **機能**: タイトル、出演者、ジャンル等での横断検索
-
-#### GetVideosByDate
-日付範囲による動画検索を行います。
-- **URL**: `/proto.video.v1.VideoService/GetVideosByDate`
-- **メソッド**: POST（Connect プロトコル）
-- **機能**: 指定期間内にリリースされた動画を取得
-
-#### GetVideosByKeyword
-キーワード検索による動画取得を行います。
-- **URL**: `/proto.video.v1.VideoService/GetVideosByKeyword`
-- **メソッド**: POST（Connect プロトコル）
-- **機能**: 特定キーワードに一致する動画を検索
+| RPC | HTTP パス | 説明 |
+| --- | --- | --- |
+| `Record` | `/eventlog.EventLogService/Record` | 単一イベントを Kafka に送信 |
+| `RecordBatch` | `/eventlog.EventLogService/RecordBatch` | 複数イベントをまとめて送信 |
 
 ## プロジェクト構造
-
-プロジェクトはクリーンアーキテクチャに従って構成されています：
 
 ```
 tikfack-server/
 ├── cmd/
-│   └── app/              # アプリケーションエントリポイント
-│       └── main.go       # メインプログラム
-├── internal/             # 内部パッケージ
-│   ├── application/      # アプリケーション層
-│   │   └── usecase/      # ビジネスロジック
-│   │       └── video/    # 動画関連ユースケース
-│   ├── domain/           # ドメイン層
-│   │   ├── entity/       # ドメインエンティティ
-│   │   └── repository/   # リポジトリインターフェース
-│   ├── infrastructure/   # インフラストラクチャ層
-│   │   ├── connect/      # Connect API ハンドラー
-│   │   ├── dmmapi/       # DMM API クライアント
-│   │   ├── repository/   # リポジトリ実装
-│   │   └── util/         # ユーティリティ
-│   └── middleware/       # ミドルウェア
-│       ├── auth/         # 認証機能
-│       ├── logger/       # ロギング
-│       └── ctxkeys/      # コンテキストキー
+│   └── app/              # エントリポイント
+├── internal/
+│   ├── application/      # ユースケース層
+│   ├── domain/           # エンティティ・リポジトリインターフェース
+│   ├── infrastructure/   # DMM API クライアント、リポジトリ実装
+│   └── middleware/       # 認証・ロギング・コンテキストキー
 ├── proto/                # Protocol Buffers 定義
-├── gen/                  # 生成されたコード (Protocol Buffers)
-├── test/                 # テスト関連ファイル
-├── docs/                 # ドキュメント
-├── .github/              # GitHub Actions設定
-├── Dockerfile            # Docker ビルド設定
-├── buf.gen.yaml          # buf 生成設定
-├── go.mod               # Go モジュール定義
-├── go.sum               # 依存関係のハッシュ
-└── README.md            # このファイル
+├── gen/                  # buf generate による生成コード
+├── docs/                 # 設計資料
+├── docker-compose.yml    # Docker 起動設定
+├── docker.env            # Docker 用環境変数サンプル
+└── README.md
 ```
-
-### アーキテクチャレイヤー
-
-- **Application Layer**: ビジネスロジックとユースケース
-- **Domain Layer**: ドメインエンティティとビジネスルール
-- **Infrastructure Layer**: 外部サービスとの統合、データアクセス
-- **Middleware**: 横断的関心事（認証、ログ、CORS等）
 
 ## 開発とテスト
 
-### テストの実行
+### テスト実行
 
 ```bash
-# 全テストの実行
+# すべてのテスト
 go test ./...
 
-# テストカバレッジの確認
-go test -cover ./...
+# カバレッジ（HTML 出力例）
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out -o coverage.html
 
 # 特定パッケージのテスト
 go test ./internal/application/usecase/video/...
 ```
 
 ### コード品質
+- `gomock` を使用したモック生成（`go generate` タグが付いたファイルを参照）
+- slog による構造化ログ
+- CORS とミドルウェアをチェインして Connect ハンドラーに適用
 
-プロジェクトには包括的なテストスイートが含まれています：
-- **ユニットテスト**: 各レイヤーの個別機能をテスト
-- **モック**: `go.uber.org/mock` を使用した依存関係のモック化
-- **テーブル駆動テスト**: 複数のテストケースを効率的に実行
-
-### デバッグとログ
-
-- 構造化ログ出力による詳細なトレーシング
-- リクエスト/レスポンスの自動ログ記録
-- エラー詳細の包括的な記録
+## 参考資料
+- `docs/clean_architecture.mmd`: レイヤー構成
+- `docs/sequences/video/*.mmd`: 各ユースケースのシーケンス図
+- `docs/entity_diagram/entity_diagram.mmd`: エンティティ関係図
