@@ -9,11 +9,15 @@ import (
 	favoritehandler "github.com/tikfack/server/internal/presentation/connect"
 )
 
-func provideFavoriteUsecase() favoriteuc.FavoriteUsecase {
-	accountRepository := accountrepo.NewMemoryAccountRepository()
-	videoRepository := favoriterepo.NewMemoryFavoriteVideoRepository()
-	actorRepository := favoriterepo.NewMemoryFavoriteActorRepository()
-	return favoriteuc.NewFavoriteUsecase(accountRepository, videoRepository, actorRepository)
+func provideFavoriteUsecase() (favoriteuc.FavoriteUsecase, error) {
+	db, err := provideDatabase()
+	if err != nil {
+		return nil, err
+	}
+	accountRepository := accountrepo.NewPostgresAccountRepository(db)
+	videoRepository := favoriterepo.NewPostgresFavoriteVideoRepository(db)
+	actorRepository := favoriterepo.NewPostgresFavoriteActorRepository(db)
+	return favoriteuc.NewFavoriteUsecase(accountRepository, videoRepository, actorRepository), nil
 }
 
 func provideFavoriteHandler(uc favoriteuc.FavoriteUsecase, opts []connect.HandlerOption) *favoritehandler.FavoriteServiceServer {

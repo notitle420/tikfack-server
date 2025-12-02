@@ -26,7 +26,7 @@ func NewAccountFromKeycloak(keycloakID string) (*Account, error) {
 
 	now := time.Now().UTC()
 	return &Account{
-		UserID:     uuid.NewString(),
+		UserID:     keycloakID,
 		KeycloakID: keycloakID,
 		CreatedAt:  now,
 		UpdatedAt:  now,

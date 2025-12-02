@@ -8,19 +8,16 @@ package di
 
 import (
 	"github.com/bufbuild/connect-go"
-	favoriteuc "github.com/tikfack/server/internal/application/usecase/favorite"
-	accountrepo "github.com/tikfack/server/internal/infrastructure/repository/account"
-	favoriterepo "github.com/tikfack/server/internal/infrastructure/repository/favorite"
 	connect2 "github.com/tikfack/server/internal/presentation/connect"
 )
 
 // Injectors from favorite_wire.go:
 
 func InitializeFavoriteHandler(opts []connect.HandlerOption) (*connect2.FavoriteServiceServer, error) {
-	accountRepository := accountrepo.NewMemoryAccountRepository()
-	memoryFavoriteVideoRepository := favoriterepo.NewMemoryFavoriteVideoRepository()
-	memoryFavoriteActorRepository := favoriterepo.NewMemoryFavoriteActorRepository()
-	favoriteUsecase := favoriteuc.NewFavoriteUsecase(accountRepository, memoryFavoriteVideoRepository, memoryFavoriteActorRepository)
+	favoriteUsecase, err := provideFavoriteUsecase()
+	if err != nil {
+		return nil, err
+	}
 	favoriteServiceServer := provideFavoriteHandler(favoriteUsecase, opts)
 	return favoriteServiceServer, nil
 }
