@@ -1,0 +1,72 @@
+syntax = "proto3";
+package favorite;
+
+option go_package = "github.com/tikfack/server/gen/favorite;favorite";
+
+message FavoriteVideo {
+  string favorite_video_uuid = 1;
+  string user_id = 2;
+  string video_id = 3;
+  string created_at = 4;
+}
+
+message FavoriteActor {
+  string favorite_actor_uuid = 1;
+  string user_id = 2;
+  string actor_id = 3;
+  string created_at = 4;
+}
+
+message AddFavoriteVideoRequest {
+  string video_id = 1;
+}
+
+message AddFavoriteVideoResponse {
+  FavoriteVideo favorite_video = 1;
+}
+
+message RemoveFavoriteVideoRequest {
+  string video_id = 1;
+}
+
+message RemoveFavoriteVideoResponse {
+  string favorite_video_uuid = 1;
+}
+
+message ListFavoriteVideosRequest {}
+
+message ListFavoriteVideosResponse {
+  repeated FavoriteVideo favorite_videos = 1;
+}
+
+message AddFavoriteActorRequest {
+  string actor_id = 1;
+}
+
+message AddFavoriteActorResponse {
+  FavoriteActor favorite_actor = 1;
+}
+
+message RemoveFavoriteActorRequest {
+  string actor_id = 1;
+}
+
+message RemoveFavoriteActorResponse {
+  string favorite_actor_uuid = 1;
+}
+
+message ListFavoriteActorsRequest {}
+
+message ListFavoriteActorsResponse {
+  repeated FavoriteActor favorite_actors = 1;
+}
+
+service FavoriteService {
+  rpc AddFavoriteVideo(AddFavoriteVideoRequest) returns (AddFavoriteVideoResponse);
+  rpc RemoveFavoriteVideo(RemoveFavoriteVideoRequest) returns (RemoveFavoriteVideoResponse);
+  rpc ListFavoriteVideos(ListFavoriteVideosRequest) returns (ListFavoriteVideosResponse);
+
+  rpc AddFavoriteActor(AddFavoriteActorRequest) returns (AddFavoriteActorResponse);
+  rpc RemoveFavoriteActor(RemoveFavoriteActorRequest) returns (RemoveFavoriteActorResponse);
+  rpc ListFavoriteActors(ListFavoriteActorsRequest) returns (ListFavoriteActorsResponse);
+}
