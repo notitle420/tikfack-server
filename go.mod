@@ -7,11 +7,11 @@ toolchain go1.24.3
 require (
 	github.com/bufbuild/connect-go v1.10.0
 	github.com/coreos/go-oidc v2.3.0+incompatible
-github.com/google/uuid v1.6.0
-github.com/google/wire v0.7.0
-github.com/lib/pq v1.10.9
-github.com/joho/godotenv v1.5.1
-github.com/mviniciusgc/gocloak/v13 v13.6.1
+	github.com/google/uuid v1.6.0
+	github.com/google/wire v0.7.0
+	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
+	github.com/mviniciusgc/gocloak/v13 v13.6.1
 	github.com/rs/cors v1.11.1
 	github.com/segmentio/kafka-go v0.4.48
 	github.com/stretchr/testify v1.10.0
@@ -31,7 +31,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.2.0 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
 	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/oauth2 v0.25.0 // indirect

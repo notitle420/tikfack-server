@@ -25,19 +25,19 @@ type FavoriteUsecase interface {
 
 // usecase implements FavoriteUsecase.
 type usecase struct {
-	accountRepo       repository.AccountRepository
+	userRepo          repository.UserRepository
 	favoriteVideoRepo repository.FavoriteVideoRepository
 	favoriteActorRepo repository.FavoriteActorRepository
 }
 
 // NewFavoriteUsecase constructs a FavoriteUsecase.
 func NewFavoriteUsecase(
-	accountRepo repository.AccountRepository,
+	userRepo repository.UserRepository,
 	favoriteVideoRepo repository.FavoriteVideoRepository,
 	favoriteActorRepo repository.FavoriteActorRepository,
 ) FavoriteUsecase {
 	return &usecase{
-		accountRepo:       accountRepo,
+		userRepo:          userRepo,
 		favoriteVideoRepo: favoriteVideoRepo,
 		favoriteActorRepo: favoriteActorRepo,
 	}
@@ -45,18 +45,18 @@ func NewFavoriteUsecase(
 
 func (u *usecase) AddFavoriteVideo(ctx context.Context, keycloakID, videoID string) (*model.FavoriteVideo, error) {
 	log := logger.LoggerWithCtx(ctx)
-	account, err := u.ensureAccount(ctx, keycloakID)
+	user, err := u.ensureUser(ctx, keycloakID)
 	if err != nil {
 		return nil, err
 	}
-	existing, err := u.favoriteVideoRepo.FindByUserAndVideoID(ctx, account.UserID, videoID)
+	existing, err := u.favoriteVideoRepo.FindByUserAndVideoID(ctx, user.UserID, videoID)
 	if err == nil && existing != nil {
 		log.Debug("favorite video already exists", "video_id", videoID)
 		fv := model.NewFavoriteVideoFromEntity(*existing)
 		return &fv, nil
 	}
 
-	favorite, err := entity.NewFavoriteVideo(account.UserID, videoID)
+	favorite, err := entity.NewFavoriteVideo(user.UserID, videoID)
 	if err != nil {
 		return nil, err
 	}
@@ -68,11 +68,11 @@ func (u *usecase) AddFavoriteVideo(ctx context.Context, keycloakID, videoID stri
 }
 
 func (u *usecase) RemoveFavoriteVideo(ctx context.Context, keycloakID, videoID string) (*model.FavoriteVideo, error) {
-	account, err := u.ensureAccount(ctx, keycloakID)
+	user, err := u.ensureUser(ctx, keycloakID)
 	if err != nil {
 		return nil, err
 	}
-	removed, err := u.favoriteVideoRepo.RemoveByVideoID(ctx, account.UserID, videoID)
+	removed, err := u.favoriteVideoRepo.RemoveByVideoID(ctx, user.UserID, videoID)
 	if err != nil {
 		return nil, err
 	}
@@ -81,11 +81,11 @@ func (u *usecase) RemoveFavoriteVideo(ctx context.Context, keycloakID, videoID s
 }
 
 func (u *usecase) ListFavoriteVideos(ctx context.Context, keycloakID string) ([]model.FavoriteVideo, error) {
-	account, err := u.ensureAccount(ctx, keycloakID)
+	user, err := u.ensureUser(ctx, keycloakID)
 	if err != nil {
 		return nil, err
 	}
-	favorites, err := u.favoriteVideoRepo.ListByUserID(ctx, account.UserID)
+	favorites, err := u.favoriteVideoRepo.ListByUserID(ctx, user.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -98,17 +98,17 @@ func (u *usecase) ListFavoriteVideos(ctx context.Context, keycloakID string) ([]
 
 func (u *usecase) AddFavoriteActor(ctx context.Context, keycloakID, actorID string) (*model.FavoriteActor, error) {
 	log := logger.LoggerWithCtx(ctx)
-	account, err := u.ensureAccount(ctx, keycloakID)
+	user, err := u.ensureUser(ctx, keycloakID)
 	if err != nil {
 		return nil, err
 	}
-	existing, err := u.favoriteActorRepo.FindByUserAndActorID(ctx, account.UserID, actorID)
+	existing, err := u.favoriteActorRepo.FindByUserAndActorID(ctx, user.UserID, actorID)
 	if err == nil && existing != nil {
 		log.Debug("favorite actor already exists", "actor_id", actorID)
 		fa := model.NewFavoriteActorFromEntity(*existing)
 		return &fa, nil
 	}
-	favorite, err := entity.NewFavoriteActor(account.UserID, actorID)
+	favorite, err := entity.NewFavoriteActor(user.UserID, actorID)
 	if err != nil {
 		return nil, err
 	}
@@ -120,11 +120,11 @@ func (u *usecase) AddFavoriteActor(ctx context.Context, keycloakID, actorID stri
 }
 
 func (u *usecase) RemoveFavoriteActor(ctx context.Context, keycloakID, actorID string) (*model.FavoriteActor, error) {
-	account, err := u.ensureAccount(ctx, keycloakID)
+	user, err := u.ensureUser(ctx, keycloakID)
 	if err != nil {
 		return nil, err
 	}
-	removed, err := u.favoriteActorRepo.RemoveByActorID(ctx, account.UserID, actorID)
+	removed, err := u.favoriteActorRepo.RemoveByActorID(ctx, user.UserID, actorID)
 	if err != nil {
 		return nil, err
 	}
@@ -133,11 +133,11 @@ func (u *usecase) RemoveFavoriteActor(ctx context.Context, keycloakID, actorID s
 }
 
 func (u *usecase) ListFavoriteActors(ctx context.Context, keycloakID string) ([]model.FavoriteActor, error) {
-	account, err := u.ensureAccount(ctx, keycloakID)
+	user, err := u.ensureUser(ctx, keycloakID)
 	if err != nil {
 		return nil, err
 	}
-	favorites, err := u.favoriteActorRepo.ListByUserID(ctx, account.UserID)
+	favorites, err := u.favoriteActorRepo.ListByUserID(ctx, user.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -148,9 +148,9 @@ func (u *usecase) ListFavoriteActors(ctx context.Context, keycloakID string) ([]
 	return results, nil
 }
 
-func (u *usecase) ensureAccount(ctx context.Context, keycloakID string) (*entity.Account, error) {
+func (u *usecase) ensureUser(ctx context.Context, keycloakID string) (*entity.User, error) {
 	if keycloakID == "" {
 		return nil, fmt.Errorf("keycloak id is required")
 	}
-	return u.accountRepo.UpsertByKeycloakID(ctx, keycloakID)
+	return u.userRepo.UpsertByKeycloakID(ctx, keycloakID)
 }

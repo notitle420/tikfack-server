@@ -1,33 +1,50 @@
-# TikFack Server Constitution
+# [PROJECT_NAME] Constitution
+<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
 
 ## Core Principles
 
-### I. Clean Architecture First
-業務ロジックは application / domain に閉じ込め、presentation と infrastructure は入出力適応のみに専念する。依存方向は presentation → application → infrastructure（port実装）を厳守し、アダプタ側でドメイン型を直接操作しない。
+### [PRINCIPLE_1_NAME]
+<!-- Example: I. Library-First -->
+[PRINCIPLE_1_DESCRIPTION]
+<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
 
-### II. Transport as Presentation
-Connect/gRPC などのハンドラやプレゼンターは presentation 層に配置する。DTO変換・レスポンス組み立てはここで完結させ、infrastructure へは外部サービスや永続化の実装だけを置く。
+### [PRINCIPLE_2_NAME]
+<!-- Example: II. CLI Interface -->
+[PRINCIPLE_2_DESCRIPTION]
+<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
 
-### III. Testable by Design
-ユースケース・アダプタともにモック可能なDIを徹底し、`go test ./...` が常に通る構成を維持する。新規機能はユニットテストまたはモックサーバでの検証を伴い、CI実行を念頭に副作用を排除する。
+### [PRINCIPLE_3_NAME]
+<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
+[PRINCIPLE_3_DESCRIPTION]
+<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
 
-### IV. Security & Middleware
-OIDC/Keycloak 連携や認可はミドルウェア層で統合し、各ハンドラからは一貫した context 情報（user/trace/token）を取得できるようにする。資格情報や環境変数は `.env` 管理とし、コード内にハードコードしない。
+### [PRINCIPLE_4_NAME]
+<!-- Example: IV. Integration Testing -->
+[PRINCIPLE_4_DESCRIPTION]
+<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
 
-### V. Observability & Simplicity
-`slog` を用いた構造化ログとトレースID付与を必須とし、外部呼び出しやエラーは全てログ出力する。YAGNI に従い、重複処理はユーティリティや presenter に集約してシンプルさを保つ。
+### [PRINCIPLE_5_NAME]
+<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
+[PRINCIPLE_5_DESCRIPTION]
+<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
 
-## Engineering Standards
-- Go 1.24 toolchain、buf/protoc によるコード生成を必須とする。
-- 依存は `go mod tidy` で正規化し、ビルド／テスト前に `scripts/buf-generate.sh` を実行してコード生成する。
-- `cmd/app` はコンポジションルートとして依存を束ね、その他の層には new/DI ロジックを置かない。
+## [SECTION_2_NAME]
+<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
 
-## Workflow & Quality Gates
-- 変更前に計画（Plan tool 等）を共有し、責務境界への影響を明示する。
-- PR では lint/format（`gofmt`）済みであること、テスト失敗時は原因をレポートする。
-- Connect API 追加時は proto→buf generate→handler実装→テストの順で進める。
+[SECTION_2_CONTENT]
+<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+
+## [SECTION_3_NAME]
+<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+
+[SECTION_3_CONTENT]
+<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
 
 ## Governance
-本憲章は TikFack Server の実装方針を定義し、全PR/レビューはこれへの準拠を確認する。改訂は影響分析と周知を伴うこと。
+<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-**Version**: 1.0.0 | **Ratified**: 2025-12-01 | **Last Amended**: 2025-12-01
+[GOVERNANCE_RULES]
+<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+
+**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
+<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->

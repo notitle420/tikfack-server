@@ -4,8 +4,8 @@ import (
 	"github.com/bufbuild/connect-go"
 
 	favoriteuc "github.com/tikfack/server/internal/application/usecase/favorite"
-	accountrepo "github.com/tikfack/server/internal/infrastructure/repository/account"
 	favoriterepo "github.com/tikfack/server/internal/infrastructure/repository/favorite"
+	userrepo "github.com/tikfack/server/internal/infrastructure/repository/user"
 	favoritehandler "github.com/tikfack/server/internal/presentation/connect"
 )
 
@@ -14,10 +14,10 @@ func provideFavoriteUsecase() (favoriteuc.FavoriteUsecase, error) {
 	if err != nil {
 		return nil, err
 	}
-	accountRepository := accountrepo.NewPostgresAccountRepository(db)
+	userRepository := userrepo.NewPostgresUserRepository(db)
 	videoRepository := favoriterepo.NewPostgresFavoriteVideoRepository(db)
 	actorRepository := favoriterepo.NewPostgresFavoriteActorRepository(db)
-	return favoriteuc.NewFavoriteUsecase(accountRepository, videoRepository, actorRepository), nil
+	return favoriteuc.NewFavoriteUsecase(userRepository, videoRepository, actorRepository), nil
 }
 
 func provideFavoriteHandler(uc favoriteuc.FavoriteUsecase, opts []connect.HandlerOption) *favoritehandler.FavoriteServiceServer {
