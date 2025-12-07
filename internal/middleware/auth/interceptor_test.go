@@ -10,8 +10,8 @@ import (
 	gocloak "github.com/mviniciusgc/gocloak/v13"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tikfack/server/internal/middleware/ctxkeys"
 	"github.com/tikfack/server/internal/middleware/auth/mock"
+	"github.com/tikfack/server/internal/middleware/ctxkeys"
 )
 
 // mockIDToken implements IDTokenInterface for testing
@@ -24,7 +24,9 @@ func (m *mockIDToken) Claims(v interface{}) error {
 	if m.err != nil {
 		return m.err
 	}
-	if claims, ok := v.(*struct{ Sub string `json:"sub"` }); ok {
+	if claims, ok := v.(*struct {
+		Sub string `json:"sub"`
+	}); ok {
 		claims.Sub = m.sub
 	}
 	return nil
@@ -112,8 +114,9 @@ func TestIntrospectionInterceptor(t *testing.T) {
 			setupClient: func() mock.GocloakClientInterface {
 				return &mockGocloakClient{}
 			},
-			expectError:  true,
-			expectedCode: connect.CodeUnauthenticated,
+			expectError:   false,
+			expectedSub:   "",
+			expectedToken: "",
 		},
 		{
 			name:       "Invalid Authorization Format",
@@ -210,7 +213,7 @@ func TestIntrospectionInterceptor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			verifier := tt.setupVerifier()
 			client := tt.setupClient()
-			
+
 			interceptor := IntrospectionInterceptorWithInterfaces(
 				verifier,
 				client,
@@ -218,7 +221,7 @@ func TestIntrospectionInterceptor(t *testing.T) {
 				"test-client",
 				"test-secret",
 			)
-			
+
 			nextCalled := false
 			var ctxSub, ctxToken string
 			next := func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
@@ -231,16 +234,16 @@ func TestIntrospectionInterceptor(t *testing.T) {
 				}
 				return nil, nil
 			}
-			
+
 			req := &mockRequest{
 				header: http.Header{
 					"Authorization": []string{tt.authHeader},
 				},
 			}
-			
+
 			unaryFunc := interceptor.WrapUnary(next)
 			_, err := unaryFunc(context.Background(), req)
-			
+
 			if tt.expectError {
 				require.Error(t, err)
 				connectErr, ok := err.(*connect.Error)
@@ -295,7 +298,7 @@ func TestCheckPermissionFunc(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockClient := tt.setupMock()
-			
+
 			err := CheckPermissionFuncWithInterface(
 				context.Background(),
 				mockClient,
@@ -304,7 +307,7 @@ func TestCheckPermissionFunc(t *testing.T) {
 				"test-realm",
 				"test-client",
 			)
-			
+
 			if tt.expectError {
 				require.Error(t, err)
 			} else {

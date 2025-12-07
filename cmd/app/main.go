@@ -77,9 +77,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	favoriteHandler, err := di.InitializeFavoriteHandler([]connect.HandlerOption{
+		connect.WithInterceptors(
+			introspectionInterceptor,
+			logger.LoggingInterceptor(),
+		),
+	})
+	if err != nil {
+		slog.Error("failed to initialize favorite handler", "error", err)
+		os.Exit(1)
+	}
+
 	mux := http.NewServeMux()
 	pattern, handler := videoHandler.GetHandler()
 	mux.Handle(pattern, handler)
+	fpattern, fhandler := favoriteHandler.GetHandler()
+	mux.Handle(fpattern, fhandler)
 
 	eventHandler, err := di.InitializeEventLogHandler([]connect.HandlerOption{
 		connect.WithInterceptors(

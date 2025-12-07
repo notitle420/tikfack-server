@@ -61,7 +61,7 @@ func (m *DefaultResourceMapper) GetResource(methodName string) (string, error) {
 	if len(parts) > 0 {
 		methodName = parts[len(parts)-1]
 	}
-	
+
 	resource, exists := m.mappings[methodName]
 	if !exists {
 		return "", ErrNoResourceMapping
@@ -139,11 +139,11 @@ func PermissionInterceptorWithMapper(
 			// 1) Token取得
 			tokenVal := ctx.Value(ctxkeys.TokenKey)
 			if tokenVal == nil {
-				slog.Error("no token found in context")
-				return nil, connect.NewError(connect.CodeUnauthenticated, ErrNoTokenInContext)
+				// ログインしていない場合は権限チェックをスキップ
+				return next(ctx, req)
 			}
 			userToken, _ := tokenVal.(string)
-			
+
 			// 2) メソッド名 → resourceNameを決定
 			methodFullName := req.Spec().Procedure
 			var resourceName string
@@ -177,6 +177,11 @@ func IntrospectionInterceptorWithInterfaces(
 ) connect.Interceptor {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			// 認証ヘッダが無ければスキップ（非ログインアクセスを許可）
+			if strings.TrimSpace(req.Header().Get("Authorization")) == "" {
+				return next(ctx, req)
+			}
+
 			// 1) Authorization ヘッダ取得
 			token, err := extractBearerToken(req)
 			if err != nil {
@@ -225,6 +230,11 @@ func IntrospectionInterceptor(
 ) connect.Interceptor {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			// 認証ヘッダが無ければスキップ（非ログインアクセスを許可）
+			if strings.TrimSpace(req.Header().Get("Authorization")) == "" {
+				return next(ctx, req)
+			}
+
 			// 1) Authorization ヘッダ取得
 			token, err := extractBearerToken(req)
 			if err != nil {

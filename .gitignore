@@ -1,11 +1,18 @@
 # 環境変数ファイル
 *.env
 
+#キャッシュ
+*.cache
+/.cache/
+.gomodcache/
+chash
+
 # 一時ファイル
 branch_changes.diff
 
 # バイナリ
 /bin/
+app
 *.exe
 *.exe~
 *.dll
